@@ -243,6 +243,19 @@ test.describe("authorization and validation (no connpass.com)", () => {
     }
   });
 
+  test("connpass QR check-in requires organizer access to some allowlisted group", async ({
+    request,
+  }) => {
+    for (const token of [TOKENS.member, TOKENS.outsider]) {
+      const checkin = await request.post("/api/checkin", {
+        headers: auth(token),
+        data: { url: "https://connpass.com/event/1/qr_checkin/2/3/" },
+      });
+      expect(checkin.status()).toBe(403);
+      await expect(checkin.json()).resolves.toEqual({ error: "forbidden" });
+    }
+  });
+
   test("jobs 404 and relogin is admin-only", async ({ request }) => {
     const missing = await request.get("/api/jobs/does-not-exist", {
       headers: auth(TOKENS.admin),

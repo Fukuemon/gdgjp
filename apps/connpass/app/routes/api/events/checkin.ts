@@ -2,8 +2,8 @@ import { getBearerIdentity } from "@gdgjp/gdg-lib";
 import type { ActionFunctionArgs } from "react-router";
 import { accountsBaseUrl } from "~/features/auth/accounts-url.server";
 import {
+  canWriteAnyGroup,
   canWriteGroup,
-  getAllowedGroupByNumericId,
   getAllowedLumaCalendar,
 } from "~/features/auth/authorize.server";
 import { checkInInBrowser } from "~/features/connpass/connpass-browser-read.server";
@@ -24,11 +24,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
   let checkIn: () => Promise<"checked_in" | "failed" | "forbidden">;
   if (connpassCheckin) {
-    checkIn = () =>
-      checkInInBrowser(env, connpassCheckin, async (groupNumericId) => {
-        const group = await getAllowedGroupByNumericId(env.DB, groupNumericId);
-        return group != null && canWriteGroup(identity, group);
-      });
+    checkIn = async () => {
+      if (!(await canWriteAnyGroup(env.DB, identity))) return "forbidden";
+      return (await checkInInBrowser(env, connpassCheckin.url)) ? "checked_in" : "failed";
+    };
   } else if (lumaCheckin) {
     checkIn = () =>
       checkInLumaGuest(env, lumaCheckin, async (calendarApiId) => {

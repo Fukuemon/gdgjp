@@ -339,8 +339,9 @@ export interface paths {
          * Check in a participant from a connpass or Luma ticket QR URL
          * @description Accepts either QR payload and runs synchronously, reporting only whether the check-in succeeded.
          *     - connpass reception QR (`https://connpass.com/event/{eventId}/qr_checkin/{n}/{n}/`): opened as
-         *       the bot account, which marks the participant as attended. Requires organizer access to the
-         *       event's allowlisted group, and the bot must be a co-admin of the event on connpass.
+         *       the bot account, which marks the participant as attended; nothing else is loaded. Requires
+         *       organizer access to at least one enabled allowlisted group (or admin), and the bot must be a
+         *       co-admin of the event on connpass.
          *
          *     - Luma "My ticket" QR (`https://luma.com/check-in/{eventApiId}?pk={proxyKey}`): the guest is
          *       looked up by proxy key and checked in through api.luma.com as the bot account. Requires

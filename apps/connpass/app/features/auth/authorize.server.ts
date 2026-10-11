@@ -102,6 +102,27 @@ export function canWriteGroup(
   );
 }
 
+/**
+ * Organizer of at least one enabled allowlisted connpass group. connpass reception
+ * QR check-in opens the URL as the bot without resolving the event's group, so it
+ * is gated on this instead of a per-group check.
+ */
+export async function canWriteAnyGroup(db: D1Database, identity: BearerIdentity): Promise<boolean> {
+  if (identity.user.isAdmin) return true;
+  const chapterIds = identity.chapters
+    .filter((c) => c.role === "organizer")
+    .map((c) => String(c.chapterId));
+  if (chapterIds.length === 0) return false;
+  const row = await db
+    .prepare(
+      `SELECT 1 AS ok FROM groups
+       WHERE enabled = 1 AND chapter_id IN (${chapterIds.map(() => "?").join(", ")}) LIMIT 1`,
+    )
+    .bind(...chapterIds)
+    .first<{ ok: number }>();
+  return row != null;
+}
+
 export function requireAdmin(identity: BearerIdentity): boolean {
   return identity.user.isAdmin;
 }

@@ -1,6 +1,4 @@
 import type { Page } from "@cloudflare/playwright";
-import { parseEventModel } from "./event-model";
-import { eventEditUrl } from "./urls";
 
 export type CheckinUrl = { url: string; eventId: string };
 
@@ -25,16 +23,6 @@ export function parseCheckinUrl(raw: unknown): CheckinUrl | null {
   if (!match?.[1]) return null;
   const path = url.pathname.endsWith("/") ? url.pathname : `${url.pathname}/`;
   return { url: `https://connpass.com${path}`, eventId: match[1] };
-}
-
-/** Numeric connpass group (series) id of an event, read from its edit page model. */
-export async function scrapeEventGroupNumericId(
-  page: Page,
-  eventId: string,
-): Promise<number | null> {
-  await page.goto(eventEditUrl(eventId), { waitUntil: "domcontentloaded" });
-  if (page.url().includes("/login")) throw new Error("connpass_login_required");
-  return parseEventModel(await page.content())?.series ?? null;
 }
 
 const CHECKIN_SUCCESS =
