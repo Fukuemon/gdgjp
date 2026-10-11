@@ -1,11 +1,17 @@
 post:
   operationId: checkInParticipant
-  summary: Check in a participant from a reception QR URL
+  summary: Check in a participant from a connpass or Luma ticket QR URL
   description: >
-    Opens the connpass reception QR URL (`https://connpass.com/event/{eventId}/qr_checkin/{n}/{n}/`)
-    as the bot account, which marks the participant as attended. Runs synchronously and reports
-    only whether the check-in succeeded. Requires organizer access to the event's allowlisted group,
-    and the bot account must be a co-admin of the event on connpass.
+    Accepts either QR payload and runs synchronously, reporting only whether the check-in succeeded.
+
+    - connpass reception QR (`https://connpass.com/event/{eventId}/qr_checkin/{n}/{n}/`): opened as
+      the bot account, which marks the participant as attended. Requires organizer access to the
+      event's allowlisted group, and the bot must be a co-admin of the event on connpass.
+
+    - Luma "My ticket" QR (`https://luma.com/check-in/{eventApiId}?pk={proxyKey}`): the guest is
+      looked up by proxy key and checked in through api.luma.com as the bot account. Requires
+      organizer access to the event's allowlisted Luma calendar, and the bot must be a host or
+      check-in manager of the event on Luma. Guests that are not approved are not checked in.
   security: [{BearerAuth: []}]
   requestBody:
     required: true
@@ -18,7 +24,7 @@ post:
             url:
               type: string
               format: uri
-              example: https://connpass.com/event/388434/qr_checkin/831287/7082717/
+              example: https://luma.com/check-in/evt-ADQlYMqBNjx0Lz1?pk=g-xxESl2JH0e6RQCs
   responses:
     "200":
       description: Check-in result

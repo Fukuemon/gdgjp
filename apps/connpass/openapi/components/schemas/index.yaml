@@ -673,3 +673,22 @@ UpsertGroupRequest:
       type: string
     enabled:
       type: boolean
+LumaCalendar:
+  type: object
+  required: [calendarId, enabled]
+  properties:
+    calendarId:
+      type: string
+      example: cal-rGqmOsaCBPjfIiK
+    chapterId:
+      type: string
+      nullable: true
+    enabled:
+      type: boolean
+UpsertLumaCalendarRequest:
+  type: object
+  properties:
+    chapterId:
+      type: string
+    enabled:
+      type: boolean

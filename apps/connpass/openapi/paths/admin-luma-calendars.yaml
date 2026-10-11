@@ -1,0 +1,29 @@
+get:
+  operationId: adminListLumaCalendars
+  summary: List allowlisted Luma calendars
+  security:
+    - BearerAuth: []
+  responses:
+    "200":
+      description: Luma calendars
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              calendars:
+                type: array
+                items:
+                  $ref: ../components/schemas/index.yaml#/LumaCalendar
+    "401":
+      description: Invalid token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/index.yaml#/Error
+    "403":
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/index.yaml#/Error

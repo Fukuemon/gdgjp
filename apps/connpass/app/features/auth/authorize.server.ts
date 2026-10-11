@@ -61,6 +61,27 @@ export async function getAllowedGroupByNumericId(
   };
 }
 
+export type AllowedLumaCalendar = {
+  calendarApiId: string;
+  chapterId: string | null;
+  enabled: boolean;
+};
+
+export async function getAllowedLumaCalendar(
+  db: D1Database,
+  calendarApiId: string,
+): Promise<AllowedLumaCalendar | null> {
+  const row = await db
+    .prepare(
+      `SELECT calendar_api_id AS calendarApiId, chapter_id AS chapterId, enabled
+       FROM luma_calendars WHERE calendar_api_id = ? LIMIT 1`,
+    )
+    .bind(calendarApiId)
+    .first<{ calendarApiId: string; chapterId: string | null; enabled: number }>();
+  if (!row) return null;
+  return { calendarApiId: row.calendarApiId, chapterId: row.chapterId, enabled: row.enabled === 1 };
+}
+
 export function canReadGroup(identity: BearerIdentity, group: AllowedGroup): boolean {
   if (!group.enabled) return false;
   if (identity.user.isAdmin) return true;
@@ -68,7 +89,11 @@ export function canReadGroup(identity: BearerIdentity, group: AllowedGroup): boo
   return identity.chapters.some((c) => String(c.chapterId) === String(group.chapterId));
 }
 
-export function canWriteGroup(identity: BearerIdentity, group: AllowedGroup): boolean {
+/** Organizer access to an allowlisted connpass group or Luma calendar. */
+export function canWriteGroup(
+  identity: BearerIdentity,
+  group: Pick<AllowedGroup, "chapterId" | "enabled">,
+): boolean {
   if (!group.enabled) return false;
   if (identity.user.isAdmin) return true;
   if (!group.chapterId) return false;

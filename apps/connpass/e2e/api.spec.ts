@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { TOKENS, auth, uniqueGroupSlug, upsertGroup } from "./helpers";
+import { E2E_CHAPTER_ID, TOKENS, auth, uniqueGroupSlug, upsertGroup } from "./helpers";
 
 test.describe("unauthenticated", () => {
   const getPaths = [
     "/api/admin/groups",
+    "/api/admin/luma-calendars",
     "/api/jobs/missing",
     "/api/groups/gdg-tokyo/events",
     "/api/groups/gdg-tokyo/events/1",
@@ -39,6 +40,11 @@ test.describe("unauthenticated", () => {
       data: { url: "https://connpass.com/event/1/qr_checkin/2/3/" },
     });
     expect(checkin.status()).toBe(401);
+
+    const lumaUpsert = await request.put("/api/admin/luma-calendars/cal-e2e", {
+      data: { enabled: true },
+    });
+    expect(lumaUpsert.status()).toBe(401);
   });
 
   test("invalid bearer token returns 401", async ({ request }) => {
@@ -79,6 +85,48 @@ test.describe("admin groups", () => {
         expect.objectContaining({ groupId: groupSlug, numericGroupId: 4242, enabled: true }),
       ]),
     );
+  });
+});
+
+test.describe("admin luma calendars", () => {
+  test("non-admin cannot list or upsert Luma calendars", async ({ request }) => {
+    const list = await request.get("/api/admin/luma-calendars", {
+      headers: auth(TOKENS.organizer),
+    });
+    expect(list.status()).toBe(403);
+
+    const upsert = await request.put("/api/admin/luma-calendars/cal-e2e", {
+      headers: auth(TOKENS.organizer),
+      data: { chapterId: E2E_CHAPTER_ID },
+    });
+    expect(upsert.status()).toBe(403);
+  });
+
+  test("admin can upsert and list a Luma calendar, and ids are validated", async ({ request }) => {
+    const calendarId = `cal-e2e${crypto.randomUUID().slice(0, 8)}`;
+    const upsert = await request.put(`/api/admin/luma-calendars/${calendarId}`, {
+      headers: auth(TOKENS.admin),
+      data: { chapterId: E2E_CHAPTER_ID, enabled: true },
+    });
+    expect(upsert.status()).toBe(200);
+    await expect(upsert.json()).resolves.toEqual({
+      calendarId,
+      chapterId: E2E_CHAPTER_ID,
+      enabled: true,
+    });
+
+    const list = await request.get("/api/admin/luma-calendars", { headers: auth(TOKENS.admin) });
+    expect(list.status()).toBe(200);
+    expect((await list.json()).calendars).toEqual(
+      expect.arrayContaining([{ calendarId, chapterId: E2E_CHAPTER_ID, enabled: true }]),
+    );
+
+    const invalid = await request.put("/api/admin/luma-calendars/not-a-calendar", {
+      headers: auth(TOKENS.admin),
+      data: { chapterId: E2E_CHAPTER_ID },
+    });
+    expect(invalid.status()).toBe(400);
+    await expect(invalid.json()).resolves.toEqual({ error: "invalid_calendar_id" });
   });
 });
 
@@ -180,7 +228,12 @@ test.describe("authorization and validation (no connpass.com)", () => {
     expect(conference.status()).toBe(400);
     await expect(conference.json()).resolves.toEqual({ error: "invalid_body" });
 
-    for (const url of [undefined, "https://example.com/event/1/qr_checkin/2/3/"]) {
+    for (const url of [
+      undefined,
+      "https://example.com/event/1/qr_checkin/2/3/",
+      "https://luma.com/check-in/evt-abc",
+      "https://evil.example/check-in/evt-abc?pk=g-def",
+    ]) {
       const checkin = await request.post("/api/checkin", {
         headers: auth(TOKENS.organizer),
         data: { url },

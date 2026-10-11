@@ -51,6 +51,10 @@ paths:
     $ref: ./paths/admin-groups.yaml
   /api/admin/groups/{groupId}:
     $ref: ./paths/admin-group.yaml
+  /api/admin/luma-calendars:
+    $ref: ./paths/admin-luma-calendars.yaml
+  /api/admin/luma-calendars/{calendarId}:
+    $ref: ./paths/admin-luma-calendar.yaml
 components:
   schemas:
     $ref: ./components/schemas/index.yaml

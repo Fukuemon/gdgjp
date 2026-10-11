@@ -80,6 +80,8 @@ it("preserves the public route set and resolves every relocated adapter", () => 
     "api/admin/session/relogin",
     "api/admin/groups",
     "api/admin/groups/:groupId",
+    "api/admin/luma-calendars",
+    "api/admin/luma-calendars/:calendarId",
   ]);
   for (const match of routes) expect(existsSync(join(app, match[2])), match[2]).toBe(true);
 });

@@ -30,9 +30,10 @@ func newConnpassCommand(credentials store.CredentialStore) *cobra.Command {
 func newConnpassCheckinCommand(credentials store.CredentialStore) *cobra.Command {
 	return &cobra.Command{
 		Use:   "checkin URL",
-		Short: "Check in a participant from a connpass reception QR URL",
-		Long: "Open a connpass reception QR URL (https://connpass.com/event/<id>/qr_checkin/<n>/<n>/) " +
-			"as the bot account to mark the participant as attended. Prints {\"checkedIn\": bool} " +
+		Short: "Check in a participant from a connpass or Luma ticket QR URL",
+		Long: "Check in a participant as the bot account from a connpass reception QR URL " +
+			"(https://connpass.com/event/<id>/qr_checkin/<n>/<n>/) or a Luma ticket QR URL " +
+			"(https://luma.com/check-in/evt-<id>?pk=g-<key>). Prints {\"checkedIn\": bool} " +
 			"and exits non-zero when the check-in did not succeed.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

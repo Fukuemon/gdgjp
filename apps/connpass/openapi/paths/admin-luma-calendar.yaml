@@ -1,0 +1,31 @@
+put:
+  operationId: adminUpsertLumaCalendar
+  summary: Upsert an allowlisted Luma calendar
+  description: >
+    Maps a Luma calendar (`cal-…`, the `calendar_api_id` of its events) to a GDG chapter so that
+    the chapter's organizers can check in guests of that calendar's events.
+  security:
+    - BearerAuth: []
+  parameters:
+    - name: calendarId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^cal-[A-Za-z0-9]+$"
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/index.yaml#/UpsertLumaCalendarRequest
+  responses:
+    "200":
+      description: Luma calendar
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/index.yaml#/LumaCalendar
+    "400": {$ref: ../components/responses/common.yaml#/BadRequest}
+    "401": {$ref: ../components/responses/common.yaml#/Unauthorized}
+    "403": {$ref: ../components/responses/common.yaml#/Forbidden}

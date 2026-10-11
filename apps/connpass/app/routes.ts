@@ -29,4 +29,6 @@ export default [
   route("api/admin/session/relogin", "routes/api/admin/relogin.ts"),
   route("api/admin/groups", "routes/api/admin/groups.ts"),
   route("api/admin/groups/:groupId", "routes/api/admin/group.ts"),
+  route("api/admin/luma-calendars", "routes/api/admin/luma-calendars.ts"),
+  route("api/admin/luma-calendars/:calendarId", "routes/api/admin/luma-calendar.ts"),
 ] satisfies RouteConfig;

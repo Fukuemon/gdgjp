@@ -6,6 +6,9 @@ CONNPASS_API_BASE_URL=https://connpass.com/api/v2
 CONNPASS_BOT_EMAIL=
 CONNPASS_BOT_PASSWORD=
 SESSION_ENCRYPTION_KEY=
+# Luma check-in (api.luma.com, password sign-in as the shared bot account):
+LUMA_BOT_EMAIL=gdgjp-agent@googlegroups.com
+LUMA_BOT_PASSWORD=
 # Optional live e2e against connpass.com (pnpm test:e2e):
 # CONNPASS_E2E_GROUP_SLUG=
 # CONNPASS_E2E_EVENT_ID=

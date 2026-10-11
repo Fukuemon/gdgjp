@@ -336,8 +336,16 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Check in a participant from a reception QR URL
-         * @description Opens the connpass reception QR URL (`https://connpass.com/event/{eventId}/qr_checkin/{n}/{n}/`) as the bot account, which marks the participant as attended. Runs synchronously and reports only whether the check-in succeeded. Requires organizer access to the event's allowlisted group, and the bot account must be a co-admin of the event on connpass.
+         * Check in a participant from a connpass or Luma ticket QR URL
+         * @description Accepts either QR payload and runs synchronously, reporting only whether the check-in succeeded.
+         *     - connpass reception QR (`https://connpass.com/event/{eventId}/qr_checkin/{n}/{n}/`): opened as
+         *       the bot account, which marks the participant as attended. Requires organizer access to the
+         *       event's allowlisted group, and the bot must be a co-admin of the event on connpass.
+         *
+         *     - Luma "My ticket" QR (`https://luma.com/check-in/{eventApiId}?pk={proxyKey}`): the guest is
+         *       looked up by proxy key and checked in through api.luma.com as the bot account. Requires
+         *       organizer access to the event's allowlisted Luma calendar, and the bot must be a host or
+         *       check-in manager of the event on Luma. Guests that are not approved are not checked in.
          */
         post: operations["checkInParticipant"];
         delete?: never;
@@ -390,6 +398,43 @@ export interface paths {
         get?: never;
         /** Upsert an allowlisted group */
         put: operations["adminUpsertGroup"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/luma-calendars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List allowlisted Luma calendars */
+        get: operations["adminListLumaCalendars"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/luma-calendars/{calendarId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upsert an allowlisted Luma calendar
+         * @description Maps a Luma calendar (`cal-…`, the `calendar_api_id` of its events) to a GDG chapter so that the chapter's organizers can check in guests of that calendar's events.
+         */
+        put: operations["adminUpsertLumaCalendar"];
         post?: never;
         delete?: never;
         options?: never;
@@ -678,6 +723,16 @@ export interface components {
         };
         UpsertGroupRequest: {
             numericGroupId?: number;
+            chapterId?: string;
+            enabled?: boolean;
+        };
+        LumaCalendar: {
+            /** @example cal-rGqmOsaCBPjfIiK */
+            calendarId: string;
+            chapterId?: string | null;
+            enabled: boolean;
+        };
+        UpsertLumaCalendarRequest: {
             chapterId?: string;
             enabled?: boolean;
         };
@@ -1641,7 +1696,7 @@ export interface operations {
                 "application/json": {
                     /**
                      * Format: uri
-                     * @example https://connpass.com/event/388434/qr_checkin/831287/7082717/
+                     * @example https://luma.com/check-in/evt-ADQlYMqBNjx0Lz1?pk=g-xxESl2JH0e6RQCs
                      */
                     url: string;
                 };
@@ -1784,6 +1839,75 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    adminListLumaCalendars: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Luma calendars */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        calendars?: components["schemas"]["LumaCalendar"][];
+                    };
+                };
+            };
+            /** @description Invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    adminUpsertLumaCalendar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                calendarId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertLumaCalendarRequest"];
+            };
+        };
+        responses: {
+            /** @description Luma calendar */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LumaCalendar"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
 }

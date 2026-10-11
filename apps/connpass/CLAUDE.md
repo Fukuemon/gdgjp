@@ -5,6 +5,9 @@ Machine API for connpass group admin automation via Cloudflare Browser Run.
 - Auth: Bearer GDG Accounts access token (CLI / agents)
 - Reads/writes: Playwright against connpass.com (shared bot email/password). Official connpass API is not used.
 - HTML fixtures for selectors: `fixtures/html/`
+- Luma check-in (`POST /api/checkin` with a `luma.com/check-in/…?pk=…` URL) uses api.luma.com over
+  plain `fetch` as the shared bot (`LUMA_BOT_EMAIL` / `LUMA_BOT_PASSWORD`, password sign-in; session
+  key cached in `SESSION_KV`). Events are allowed via `PUT /api/admin/luma-calendars/:calendarId`.
 
 Local port: `5179`.
 

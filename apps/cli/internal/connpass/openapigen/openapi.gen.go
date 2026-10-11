@@ -331,6 +331,13 @@ type JobStatus string
 // JobType defines model for Job.Type.
 type JobType string
 
+// LumaCalendar defines model for LumaCalendar.
+type LumaCalendar struct {
+	CalendarId string  `json:"calendarId"`
+	ChapterId  *string `json:"chapterId"`
+	Enabled    bool    `json:"enabled"`
+}
+
 // OrganizerUser defines model for OrganizerUser.
 type OrganizerUser struct {
 	DisplayName *string `json:"displayName"`
@@ -460,6 +467,12 @@ type UpsertGroupRequest struct {
 	NumericGroupId *int    `json:"numericGroupId,omitempty"`
 }
 
+// UpsertLumaCalendarRequest defines model for UpsertLumaCalendarRequest.
+type UpsertLumaCalendarRequest struct {
+	ChapterId *string `json:"chapterId,omitempty"`
+	Enabled   *bool   `json:"enabled,omitempty"`
+}
+
 // UpsertSurveyRequest defines model for UpsertSurveyRequest.
 type UpsertSurveyRequest struct {
 	Questions []SurveyQuestion `json:"questions"`
@@ -522,6 +535,9 @@ type UploadGroupEventImageMultipartBody struct {
 
 // AdminUpsertGroupJSONRequestBody defines body for AdminUpsertGroup for application/json ContentType.
 type AdminUpsertGroupJSONRequestBody = UpsertGroupRequest
+
+// AdminUpsertLumaCalendarJSONRequestBody defines body for AdminUpsertLumaCalendar for application/json ContentType.
+type AdminUpsertLumaCalendarJSONRequestBody = UpsertLumaCalendarRequest
 
 // CheckInParticipantJSONRequestBody defines body for CheckInParticipant for application/json ContentType.
 type CheckInParticipantJSONRequestBody CheckInParticipantJSONBody
@@ -639,6 +655,14 @@ type ClientInterface interface {
 	AdminUpsertGroupWithBody(ctx context.Context, groupId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	AdminUpsertGroup(ctx context.Context, groupId string, body AdminUpsertGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AdminListLumaCalendars request
+	AdminListLumaCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AdminUpsertLumaCalendarWithBody request with any body
+	AdminUpsertLumaCalendarWithBody(ctx context.Context, calendarId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AdminUpsertLumaCalendar(ctx context.Context, calendarId string, body AdminUpsertLumaCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AdminRelogin request
 	AdminRelogin(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -779,6 +803,42 @@ func (c *Client) AdminUpsertGroupWithBody(ctx context.Context, groupId string, c
 
 func (c *Client) AdminUpsertGroup(ctx context.Context, groupId string, body AdminUpsertGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAdminUpsertGroupRequest(c.Server, groupId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AdminListLumaCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAdminListLumaCalendarsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AdminUpsertLumaCalendarWithBody(ctx context.Context, calendarId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAdminUpsertLumaCalendarRequestWithBody(c.Server, calendarId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AdminUpsertLumaCalendar(ctx context.Context, calendarId string, body AdminUpsertLumaCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAdminUpsertLumaCalendarRequest(c.Server, calendarId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1336,6 +1396,80 @@ func NewAdminUpsertGroupRequestWithBody(server string, groupId string, contentTy
 	}
 
 	operationPath := fmt.Sprintf("/api/admin/groups/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewAdminListLumaCalendarsRequest generates requests for AdminListLumaCalendars
+func NewAdminListLumaCalendarsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/admin/luma-calendars")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAdminUpsertLumaCalendarRequest calls the generic AdminUpsertLumaCalendar builder with application/json body
+func NewAdminUpsertLumaCalendarRequest(server string, calendarId string, body AdminUpsertLumaCalendarJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAdminUpsertLumaCalendarRequestWithBody(server, calendarId, "application/json", bodyReader)
+}
+
+// NewAdminUpsertLumaCalendarRequestWithBody generates requests for AdminUpsertLumaCalendar with any type of body
+func NewAdminUpsertLumaCalendarRequestWithBody(server string, calendarId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "calendarId", runtime.ParamLocationPath, calendarId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/admin/luma-calendars/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2781,6 +2915,14 @@ type ClientWithResponsesInterface interface {
 
 	AdminUpsertGroupWithResponse(ctx context.Context, groupId string, body AdminUpsertGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*AdminUpsertGroupResponse, error)
 
+	// AdminListLumaCalendarsWithResponse request
+	AdminListLumaCalendarsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AdminListLumaCalendarsResponse, error)
+
+	// AdminUpsertLumaCalendarWithBodyWithResponse request with any body
+	AdminUpsertLumaCalendarWithBodyWithResponse(ctx context.Context, calendarId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AdminUpsertLumaCalendarResponse, error)
+
+	AdminUpsertLumaCalendarWithResponse(ctx context.Context, calendarId string, body AdminUpsertLumaCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*AdminUpsertLumaCalendarResponse, error)
+
 	// AdminReloginWithResponse request
 	AdminReloginWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AdminReloginResponse, error)
 
@@ -2938,6 +3080,57 @@ func (r AdminUpsertGroupResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r AdminUpsertGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AdminListLumaCalendarsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Calendars *[]LumaCalendar `json:"calendars,omitempty"`
+	}
+	JSON401 *Error
+	JSON403 *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r AdminListLumaCalendarsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AdminListLumaCalendarsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AdminUpsertLumaCalendarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *LumaCalendar
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r AdminUpsertLumaCalendarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AdminUpsertLumaCalendarResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3718,6 +3911,32 @@ func (c *ClientWithResponses) AdminUpsertGroupWithResponse(ctx context.Context, 
 	return ParseAdminUpsertGroupResponse(rsp)
 }
 
+// AdminListLumaCalendarsWithResponse request returning *AdminListLumaCalendarsResponse
+func (c *ClientWithResponses) AdminListLumaCalendarsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AdminListLumaCalendarsResponse, error) {
+	rsp, err := c.AdminListLumaCalendars(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAdminListLumaCalendarsResponse(rsp)
+}
+
+// AdminUpsertLumaCalendarWithBodyWithResponse request with arbitrary body returning *AdminUpsertLumaCalendarResponse
+func (c *ClientWithResponses) AdminUpsertLumaCalendarWithBodyWithResponse(ctx context.Context, calendarId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AdminUpsertLumaCalendarResponse, error) {
+	rsp, err := c.AdminUpsertLumaCalendarWithBody(ctx, calendarId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAdminUpsertLumaCalendarResponse(rsp)
+}
+
+func (c *ClientWithResponses) AdminUpsertLumaCalendarWithResponse(ctx context.Context, calendarId string, body AdminUpsertLumaCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*AdminUpsertLumaCalendarResponse, error) {
+	rsp, err := c.AdminUpsertLumaCalendar(ctx, calendarId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAdminUpsertLumaCalendarResponse(rsp)
+}
+
 // AdminReloginWithResponse request returning *AdminReloginResponse
 func (c *ClientWithResponses) AdminReloginWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AdminReloginResponse, error) {
 	rsp, err := c.AdminRelogin(ctx, reqEditors...)
@@ -4148,6 +4367,95 @@ func ParseAdminUpsertGroupResponse(rsp *http.Response) (*AdminUpsertGroupRespons
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
 		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAdminListLumaCalendarsResponse parses an HTTP response from a AdminListLumaCalendarsWithResponse call
+func ParseAdminListLumaCalendarsResponse(rsp *http.Response) (*AdminListLumaCalendarsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AdminListLumaCalendarsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Calendars *[]LumaCalendar `json:"calendars,omitempty"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAdminUpsertLumaCalendarResponse parses an HTTP response from a AdminUpsertLumaCalendarWithResponse call
+func ParseAdminUpsertLumaCalendarResponse(rsp *http.Response) (*AdminUpsertLumaCalendarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AdminUpsertLumaCalendarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest LumaCalendar
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
