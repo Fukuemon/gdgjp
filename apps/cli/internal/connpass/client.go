@@ -38,21 +38,23 @@ func (e *HTTPError) Error() string {
 func (e *HTTPError) HTTPStatus() int { return e.StatusCode }
 
 type (
-	CreateEventRequest      = openapigen.CreateEventRequest
-	CreateSubEventRequest   = openapigen.CreateSubEventRequest
-	Event                   = openapigen.Event
-	EventFields             = openapigen.EventFields
-	EventSummary            = openapigen.EventSummary
-	Group                   = openapigen.Group
-	Job                     = openapigen.Job
-	JobStatus               = openapigen.JobStatus
-	PublishEventRequest     = openapigen.PublishEventRequest
-	SubEvent                = openapigen.SubEvent
-	Survey                  = openapigen.Survey
-	UpdateEventRequest      = openapigen.UpdateEventRequest
-	UpsertConferenceRequest = openapigen.UpsertConferenceRequest
-	UpsertGroupRequest      = openapigen.UpsertGroupRequest
-	UpsertSurveyRequest     = openapigen.UpsertSurveyRequest
+	CreateEventRequest        = openapigen.CreateEventRequest
+	CreateSubEventRequest     = openapigen.CreateSubEventRequest
+	Event                     = openapigen.Event
+	EventFields               = openapigen.EventFields
+	EventSummary              = openapigen.EventSummary
+	Group                     = openapigen.Group
+	Job                       = openapigen.Job
+	JobStatus                 = openapigen.JobStatus
+	LumaCalendar              = openapigen.LumaCalendar
+	PublishEventRequest       = openapigen.PublishEventRequest
+	SubEvent                  = openapigen.SubEvent
+	Survey                    = openapigen.Survey
+	UpdateEventRequest        = openapigen.UpdateEventRequest
+	UpsertConferenceRequest   = openapigen.UpsertConferenceRequest
+	UpsertGroupRequest        = openapigen.UpsertGroupRequest
+	UpsertLumaCalendarRequest = openapigen.UpsertLumaCalendarRequest
+	UpsertSurveyRequest       = openapigen.UpsertSurveyRequest
 )
 
 type ListEventsResponse struct {
@@ -270,6 +272,33 @@ func (c *Client) UpsertGroup(ctx context.Context, token, groupID string, input U
 	var group Group
 	err = decodeResponse(res.StatusCode(), res.Body, &group)
 	return group, err
+}
+
+func (c *Client) ListLumaCalendars(ctx context.Context, token string) ([]LumaCalendar, error) {
+	res, err := c.generatedClient().AdminListLumaCalendarsWithResponse(ctx, bearer(token))
+	if err != nil {
+		return nil, err
+	}
+	var payload struct {
+		Calendars []LumaCalendar `json:"calendars"`
+	}
+	if err := decodeResponse(res.StatusCode(), res.Body, &payload); err != nil {
+		return nil, err
+	}
+	if payload.Calendars == nil {
+		return []LumaCalendar{}, nil
+	}
+	return payload.Calendars, nil
+}
+
+func (c *Client) UpsertLumaCalendar(ctx context.Context, token, calendarID string, input UpsertLumaCalendarRequest) (LumaCalendar, error) {
+	res, err := c.generatedClient().AdminUpsertLumaCalendarWithResponse(ctx, calendarID, input, bearer(token))
+	if err != nil {
+		return LumaCalendar{}, err
+	}
+	var calendar LumaCalendar
+	err = decodeResponse(res.StatusCode(), res.Body, &calendar)
+	return calendar, err
 }
 
 func (c *Client) Relogin(ctx context.Context, token string) (Job, error) {

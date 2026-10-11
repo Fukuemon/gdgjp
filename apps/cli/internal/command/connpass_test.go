@@ -113,6 +113,50 @@ func TestConnpassGroupsUpsert(t *testing.T) {
 	}
 }
 
+func TestConnpassLumaCalendars(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/admin/luma-calendars":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"calendars": []map[string]any{{"calendarId": "cal-abc", "chapterId": "10", "enabled": true}},
+			})
+		case r.Method == http.MethodPut && r.URL.Path == "/api/admin/luma-calendars/cal-abc":
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatal(err)
+			}
+			if payload["chapterId"] != "10" || payload["enabled"] != false {
+				t.Fatalf("payload = %#v", payload)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"calendarId": "cal-abc",
+				"chapterId":  "10",
+				"enabled":    false,
+			})
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("GDG_CONNPASS_URL", server.URL)
+
+	out, err := executeConnpass(t, "luma-calendars", "upsert", "cal-abc", "--chapter-id", "10", "--enabled=false")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `"calendarId": "cal-abc"`) || !strings.Contains(out, `"enabled": false`) {
+		t.Fatalf("upsert output = %s", out)
+	}
+
+	out, err = executeConnpass(t, "luma-calendars", "list")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `"calendars"`) || !strings.Contains(out, `"cal-abc"`) {
+		t.Fatalf("list output = %s", out)
+	}
+}
+
 func TestConnpassEventsCreate(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/api/groups/gdg-tokyo/events" {

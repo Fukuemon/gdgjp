@@ -22,6 +22,7 @@ func newConnpassCommand(credentials store.CredentialStore) *cobra.Command {
 	command.AddCommand(newConnpassEventsCommand(credentials))
 	command.AddCommand(newConnpassJobsCommand(credentials))
 	command.AddCommand(newConnpassGroupsCommand(credentials))
+	command.AddCommand(newConnpassLumaCalendarsCommand(credentials))
 	command.AddCommand(newConnpassSessionCommand(credentials))
 	command.AddCommand(newConnpassCheckinCommand(credentials))
 	return command
@@ -269,6 +270,60 @@ func newConnpassGroupsCommand(credentials store.CredentialStore) *cobra.Command 
 	upsert.Flags().StringVar(&chapterID, "chapter-id", "", "GDG Accounts chapter id for organizer authorization")
 	upsert.Flags().IntVar(&numericGroupID, "numeric-group-id", 0, "Numeric connpass group id")
 	upsert.Flags().BoolVar(&enabled, "enabled", true, "Whether the group is enabled for automation")
+	command.AddCommand(upsert)
+
+	return command
+}
+
+func newConnpassLumaCalendarsCommand(credentials store.CredentialStore) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "luma-calendars",
+		Short: "Manage allowlisted Luma calendars for check-in (admin)",
+	}
+
+	command.AddCommand(&cobra.Command{
+		Use:   "list",
+		Short: "List allowlisted Luma calendars",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			client := connpass.NewClient()
+			calendars, err := cliutil.WithToken(cmd.Context(), credentials, func(token string) ([]connpass.LumaCalendar, error) {
+				return client.ListLumaCalendars(cmd.Context(), token)
+			})
+			if err != nil {
+				return err
+			}
+			return cliutil.PrintJSON(cmd.OutOrStdout(), map[string]any{"calendars": calendars})
+		},
+	})
+
+	var (
+		chapterID string
+		enabled   bool
+	)
+	upsert := &cobra.Command{
+		Use:   "upsert CALENDAR_ID",
+		Short: "Register or update an allowlisted Luma calendar (cal-…)",
+		Long: "Map a Luma calendar (the cal-… calendar_api_id of its events) to a GDG Accounts chapter " +
+			"so the chapter's organizers can check in guests of that calendar's events.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client := connpass.NewClient()
+			input := connpass.UpsertLumaCalendarRequest{Enabled: &enabled}
+			if cmd.Flags().Changed("chapter-id") {
+				input.ChapterId = &chapterID
+			}
+			calendar, err := cliutil.WithToken(cmd.Context(), credentials, func(token string) (connpass.LumaCalendar, error) {
+				return client.UpsertLumaCalendar(cmd.Context(), token, args[0], input)
+			})
+			if err != nil {
+				return err
+			}
+			return cliutil.PrintJSON(cmd.OutOrStdout(), calendar)
+		},
+	}
+	upsert.Flags().StringVar(&chapterID, "chapter-id", "", "Numeric GDG Accounts chapter id for organizer authorization")
+	upsert.Flags().BoolVar(&enabled, "enabled", true, "Whether the calendar is enabled for check-in")
 	command.AddCommand(upsert)
 
 	return command
