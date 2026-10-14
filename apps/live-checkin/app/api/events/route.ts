@@ -34,3 +34,5 @@ const GET = async (req: NextRequest) => withAuth(req, "events", async (req, sess
 
   return NextResponse.json({ events });
 });
+
+export { GET };
