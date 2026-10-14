@@ -5,6 +5,8 @@ node_modules/
 build/
 dist/
 .react-router/
+.next/
+.open-next/
 
 # Cloudflare
 .wrangler/
