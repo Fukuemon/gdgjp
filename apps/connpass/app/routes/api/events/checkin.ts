@@ -6,6 +6,7 @@ import {
   canWriteGroup,
   getAllowedLumaCalendar,
 } from "~/features/auth/authorize.server";
+import { checkInWithFetch } from "~/features/connpass/checkin-fetch.server";
 import { checkInInBrowser } from "~/features/connpass/connpass-browser-read.server";
 import { parseCheckinUrl } from "~/features/connpass/ui/checkin";
 import { parseLumaCheckinUrl } from "~/features/luma/checkin-url";
@@ -22,18 +23,28 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const connpassCheckin = parseCheckinUrl(body?.url);
   const lumaCheckin = connpassCheckin ? null : parseLumaCheckinUrl(body?.url);
 
-  let checkIn: () => Promise<"checked_in" | "failed" | "forbidden">;
+  type Outcome = { checkedIn: boolean; userId: string | null; reason: string | null };
+  let checkIn: () => Promise<Outcome | "forbidden">;
   if (connpassCheckin) {
     checkIn = async () => {
       if (!(await canWriteAnyGroup(env.DB, identity))) return "forbidden";
-      return (await checkInInBrowser(env, connpassCheckin.url)) ? "checked_in" : "failed";
+      // Fast path (KV cookies, no browser); the browser handles relogin and unclear pages.
+      const fast = await checkInWithFetch(env, connpassCheckin.url).catch(() => null);
+      return fast ?? (await checkInInBrowser(env, connpassCheckin.url));
     };
   } else if (lumaCheckin) {
-    checkIn = () =>
-      checkInLumaGuest(env, lumaCheckin, async (calendarApiId) => {
+    checkIn = async () => {
+      const result = await checkInLumaGuest(env, lumaCheckin, async (calendarApiId) => {
         const calendar = await getAllowedLumaCalendar(env.DB, calendarApiId);
         return calendar != null && canWriteGroup(identity, calendar);
       });
+      if (result === "forbidden") return result;
+      return {
+        checkedIn: result === "checked_in",
+        userId: null,
+        reason: result === "failed" ? "failed" : null,
+      };
+    };
   } else {
     return Response.json({ error: "invalid_checkin_url" }, { status: 400 });
   }
@@ -41,9 +52,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
   try {
     const result = await checkIn();
     if (result === "forbidden") return Response.json({ error: "forbidden" }, { status: 403 });
-    return Response.json({ checkedIn: result === "checked_in" });
+    return Response.json(result);
   } catch (error) {
     console.error(connpassCheckin ? "connpass_checkin_failed" : "luma_checkin_failed", error);
-    return Response.json({ checkedIn: false });
+    return Response.json({ checkedIn: false, userId: null, reason: "error" });
   }
 }

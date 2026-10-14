@@ -1,7 +1,7 @@
 import type { Page } from "@cloudflare/playwright";
 import { getAllowedGroupByNumericId } from "../auth/authorize.server";
 import { ensureLoggedIn, forceRelogin, openConnpassSession } from "./browser.server";
-import { checkInWithQrUrl } from "./ui/checkin";
+import { type CheckinResult, checkInWithQrUrl } from "./ui/checkin";
 import { scrapeConference } from "./ui/conference";
 import { type ScrapedEventDetail, scrapeEventDetail, scrapeGroupEvents } from "./ui/event-read";
 import { scrapeEventStatistics, scrapeParticipants } from "./ui/participants";
@@ -95,6 +95,6 @@ export function getVoucherRecipientsInBrowser(env: Env, eventId: string | number
  * all connpass needs to record attendance, so nothing else is loaded first; the
  * caller authorizes before invoking this.
  */
-export function checkInInBrowser(env: Env, checkinUrl: string): Promise<boolean> {
+export function checkInInBrowser(env: Env, checkinUrl: string): Promise<CheckinResult> {
   return withConnpassRead(env, (page) => checkInWithQrUrl(page, checkinUrl));
 }

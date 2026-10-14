@@ -36,6 +36,13 @@ post:
             required: [checkedIn]
             properties:
               checkedIn: {type: boolean}
+              userId:
+                type: [string, "null"]
+                description: connpass username of the participant (connpass QR only)
+              reason:
+                type: [string, "null"]
+                enum: [already_checked_in, failed, error, null]
+                description: Why checkedIn is false; null on success
     "400": {$ref: ../components/responses/common.yaml#/BadRequest}
     "401": {$ref: ../components/responses/common.yaml#/Unauthorized}
     "403": {$ref: ../components/responses/common.yaml#/Forbidden}
