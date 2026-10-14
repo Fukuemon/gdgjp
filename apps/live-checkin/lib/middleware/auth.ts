@@ -10,7 +10,7 @@ export const withAuth = async (req: NextRequest, endpointId: string ,handler: (r
     try {
         return await handler(req, session);
     } catch (error) {
-        console.error(`[${endpointId}] Proxy Error:`, error, { request: req });
+        console.error(`[${endpointId}] Proxy Error: ${req.method} ${req.nextUrl.pathname}`, error);
         return NextResponse.json({ error: "サーバー間リクエストでエラーが発生しました" }, { status: 500 });
     }
 };
