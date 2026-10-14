@@ -1,6 +1,5 @@
 // app/api/events/route.ts
 import { NextResponse, NextRequest } from "next/server";
-import { auth, canUseQrScanner } from "@/auth";
 import { withAuth } from "@/lib/middleware/auth";
 
 const GROUP_ID = "gdgkwansai";
