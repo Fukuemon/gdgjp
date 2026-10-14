@@ -8,7 +8,7 @@ export const withAuth = async (req: NextRequest, endpointId: string ,handler: (r
     if (!canUseQrScanner(session.user.chapters)) return NextResponse.json({ error: "このチャプターのメンバーのみ利用できます。" }, { status: 403 });
 
     try {
-        return handler(req, session);
+        return await handler(req, session);
     } catch (error) {
         console.error(`[${endpointId}] Proxy Error:`, error, { request: req });
         return NextResponse.json({ error: "サーバー間リクエストでエラーが発生しました" }, { status: 500 });
