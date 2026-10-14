@@ -10,7 +10,9 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "typecheck": "next typegen && node ../../node_modules/@typescript/native/bin/tsc --noEmit",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "lint": "biome check . --config ../../biome.json",
+    "format": "biome format . --config ../../biome.json"
   },
   "dependencies": {
     "jsqr": "^1.4.0",
@@ -26,6 +28,7 @@
     "@types/node": "^22.15.30",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "biome": "^0.3.3",
     "tailwindcss": "^4",
     "typescript": "^5.9.2",
     "wrangler": "^4.149.0"
