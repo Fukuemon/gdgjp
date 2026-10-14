@@ -1,6 +1,7 @@
 // app/api/events/route.ts
+import { NextResponse, NextRequest } from "next/server";
 import { auth, canUseQrScanner } from "@/auth";
-import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/middleware/auth";
 
 const GROUP_ID = "gdgkwansai";
 const MAX_EVENTS = 3;
@@ -13,47 +14,23 @@ function startOfTodayJst(): number {
   return Math.floor(jstNow / DAY_MS) * DAY_MS - JST_OFFSET_MS;
 }
 
-export async function GET() {
-  const session = await auth();
+const GET = async (req: NextRequest) => withAuth(req, "events", async (req, session) => {
+  const connpassRes = await fetch(`https://connpass.gdgs.jp/api/groups/${GROUP_ID}/events`, {
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+    cache: "no-store",
+  });
 
-  if (!session?.accessToken) {
-    return NextResponse.json(
-      { error: "認証が必要です。ログインし直してください。" },
-      { status: 401 },
-    );
+  const data = await connpassRes.json();
+
+  if (!connpassRes.ok) {
+    return NextResponse.json(data, { status: connpassRes.status });
   }
 
-  if (!canUseQrScanner(session.user.chapters)) {
-    return NextResponse.json(
-      { error: "このチャプターのメンバーのみ利用できます。" },
-      { status: 403 },
-    );
-  }
+  const threshold = startOfTodayJst();
+  const events = ((data.events ?? []) as EventSummary[])
+    .filter((e) => e.status === "published" && new Date(e.startAt).getTime() >= threshold)
+    .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
+    .slice(0, MAX_EVENTS);
 
-  try {
-    const connpassRes = await fetch(`https://connpass.gdgs.jp/api/groups/${GROUP_ID}/events`, {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
-      cache: "no-store",
-    });
-
-    const data = await connpassRes.json();
-
-    if (!connpassRes.ok) {
-      return NextResponse.json(data, { status: connpassRes.status });
-    }
-
-    const threshold = startOfTodayJst();
-    const events = ((data.events ?? []) as EventSummary[])
-      .filter((e) => e.status === "published" && new Date(e.startAt).getTime() >= threshold)
-      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-      .slice(0, MAX_EVENTS);
-
-    return NextResponse.json({ events });
-  } catch (error) {
-    console.error("Events Proxy Error:", error);
-    return NextResponse.json(
-      { error: "サーバー間リクエストでエラーが発生しました" },
-      { status: 500 },
-    );
-  }
-}
+  return NextResponse.json({ events });
+});
