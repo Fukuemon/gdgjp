@@ -38,6 +38,27 @@ export default function CheckInPage() {
   return <CheckInScanner apiToken={apiToken} />;
 }
 
+// checkedIn=false 時の reason を画面表示用メッセージに変換
+function describeFailureReason(reason: CheckInResponse["reason"]): string {
+  switch (reason) {
+    case "failed":
+      return "受付失敗：connpassで受付できませんでした（QRコードを確認してください）";
+    case "error":
+      return "APIエラー：connpass側の処理中にエラーが発生しました";
+    default:
+      return `受付失敗：原因不明（${reason ?? "reasonなし"}）`;
+  }
+}
+
+// HTTPエラー時のステータス・エラーコードを画面表示用メッセージに変換
+function describeHttpError(status: number, error: unknown): string {
+  if (status === 401) return "認証エラー：ログインし直してください";
+  if (status === 403) return "権限エラー：受付の権限がありません";
+  if (status === 400) return "APIエラー：無効なチェックインURLです";
+  if (status >= 500) return `APIエラー：サーバーでエラーが発生しました（${status}）`;
+  return `APIエラー：リクエストに失敗しました（${status}${typeof error === "string" ? `: ${error}` : ""}）`;
+}
+
 function CheckInScanner({ apiToken }: { apiToken: string }) {
   // 設定情報
   const [groupId, setGroupId] = useState<string>("gdgkwansai"); // 一旦 gdgkwansai で固定
@@ -212,7 +233,12 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
         });
 
         if (!res.ok) {
-          throw new Error(`API error: ${await res.text()}`);
+          const body = await res.json().catch(() => null);
+          console.error("Check-in API Error:", res.status, body);
+          setScanStatus("error");
+          setStatusMessage(describeHttpError(res.status, body?.error));
+          playSound("error");
+          return;
         }
 
         const data: CheckInResponse = await res.json();
@@ -224,19 +250,28 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
           setScanStatus("success");
           setStatusMessage("受付完了！");
           playSound("success");
+        } else if (data.reason === "already_checked_in") {
+          // 別端末などで受付済み。以後の再読み取りはローカルでも弾く
+          scannedURLsRef.current.add(qrText);
+          setScanStatus("duplicate");
+          setStatusMessage("既に受付済みです");
+          playSound("duplicate");
         } else {
           console.error("Check-in API Error:", data);
           setScanStatus("error");
-          setStatusMessage("通信エラー：APIリクエスト失敗");
+          setStatusMessage(describeFailureReason(data.reason));
           playSound("error");
-          return;
         }
       } catch (err) {
-        console.error("Check-in API Error:", err);
+        // fetch 自体の失敗（オフライン等）や想定外のレスポンス形式
+        console.error("Check-in Network Error:", err);
         setScanStatus("error");
-        setStatusMessage("通信エラー：APIリクエスト失敗");
+        setStatusMessage(
+          err instanceof TypeError
+            ? "通信エラー：ネットワークに接続できません"
+            : "通信エラー：レスポンスを処理できませんでした",
+        );
         playSound("error");
-        return;
       }
     },
     [apiToken, eventId],

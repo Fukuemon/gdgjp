@@ -36,13 +36,23 @@ export async function POST(req: Request) {
       }),
     });
 
-    const data: CheckInResponse = await connpassRes.json();
+    const data = await connpassRes.json().catch(() => null);
 
     if (!connpassRes.ok) {
-      return NextResponse.json(data, { status: connpassRes.status });
+      return NextResponse.json(
+        { ...(data ?? {}), error: data?.error ?? "upstream_error", upstream: true },
+        { status: connpassRes.status },
+      );
     }
 
-    return NextResponse.json(data);
+    if (!data || typeof data.checkedIn !== "boolean") {
+      return NextResponse.json(
+        { error: "invalid_upstream_response", upstream: true },
+        { status: 502 },
+      );
+    }
+
+    return NextResponse.json(data as CheckInResponse);
   } catch (error) {
     console.error("Check-in Proxy Error:", error);
     return NextResponse.json(
