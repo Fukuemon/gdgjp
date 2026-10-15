@@ -3166,11 +3166,18 @@ type CheckInParticipantResponse struct {
 	HTTPResponse *http.Response
 	JSON200      *struct {
 		CheckedIn bool `json:"checkedIn"`
+
+		// Reason Why checkedIn is false; null on success
+		Reason *CheckInParticipant200Reason `json:"reason"`
+
+		// UserId connpass username of the participant (connpass QR only)
+		UserId *string `json:"userId"`
 	}
 	JSON400 *BadRequest
 	JSON401 *Unauthorized
 	JSON403 *Forbidden
 }
+type CheckInParticipant200Reason string
 
 // Status returns HTTPResponse.Status
 func (r CheckInParticipantResponse) Status() string {
@@ -4523,6 +4530,12 @@ func ParseCheckInParticipantResponse(rsp *http.Response) (*CheckInParticipantRes
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
 			CheckedIn bool `json:"checkedIn"`
+
+			// Reason Why checkedIn is false; null on success
+			Reason *CheckInParticipant200Reason `json:"reason"`
+
+			// UserId connpass username of the participant (connpass QR only)
+			UserId *string `json:"userId"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
