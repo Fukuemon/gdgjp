@@ -312,7 +312,9 @@ func (c *Client) Relogin(ctx context.Context, token string) (Job, error) {
 }
 
 type CheckInResponse struct {
-	CheckedIn bool `json:"checkedIn"`
+	CheckedIn bool    `json:"checkedIn"`
+	UserID    *string `json:"userId"`
+	Reason    *string `json:"reason"`
 }
 
 // CheckIn opens a connpass reception QR URL as the bot account and reports

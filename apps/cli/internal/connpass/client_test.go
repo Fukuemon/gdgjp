@@ -246,7 +246,7 @@ func TestCheckIn(t *testing.T) {
 		if payload["url"] != checkinURL {
 			t.Fatalf("payload = %#v", payload)
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"checkedIn": true})
+		_ = json.NewEncoder(w).Encode(map[string]any{"checkedIn": true, "userId": "alice", "reason": nil})
 	}))
 	t.Cleanup(server.Close)
 
@@ -254,7 +254,7 @@ func TestCheckIn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !out.CheckedIn {
+	if !out.CheckedIn || out.UserID == nil || *out.UserID != "alice" || out.Reason != nil {
 		t.Fatalf("out = %#v", out)
 	}
 }

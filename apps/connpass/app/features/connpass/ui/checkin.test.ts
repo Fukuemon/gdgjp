@@ -15,6 +15,15 @@ describe("parseCheckinPage", () => {
     });
   });
 
+  it("reports already checked in under an error heading, with the attendee rather than the bot", () => {
+    const html = `<div><a href="https://connpass.com/user/gdgagent/">gdgagent</a></div><main><h2>イベント出席エラー</h2><p>既に出席済です</p><dl><dt>参加者</dt><dd><a href="/user/Miyanber/">Miyanber</a></dd></dl></main>`;
+    expect(parseCheckinPage(html)).toEqual({
+      checkedIn: false,
+      userId: "Miyanber",
+      reason: "already_checked_in",
+    });
+  });
+
   it("reports failure for invalid pages", () => {
     expect(parseCheckinPage("<main>無効なQRコードです</main>")).toMatchObject({
       checkedIn: false,

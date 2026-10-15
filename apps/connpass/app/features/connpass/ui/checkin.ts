@@ -39,6 +39,9 @@ const CHECKIN_SUCCESS =
   /受付(が|を)?(完了|しました)|出席(登録|に)|チェックイン(が|を)?(完了|しました)/;
 const CHECKIN_FAILURE = /(無効|見つかりません|権限|エラー|失敗|できません)/;
 const USER_LINK = /href="(?:https:\/\/connpass\.com)?\/user\/([^/"?#]+)\/?"/;
+/** The attendee row ("参加者 <link>"); the logged-in bot's own link sits in the page header. */
+const ATTENDEE_LINK =
+  /参加者[\s\S]{0,400}?href="(?:https:\/\/connpass\.com)?\/user\/([^/"?#]+)\/?"/;
 
 /** Drop site chrome so the logged-in bot's own profile link is never mistaken for the attendee. */
 function mainContent(html: string): string {
@@ -54,10 +57,11 @@ export function parseCheckinPage(html: string): CheckinResult {
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ");
-  const userId = USER_LINK.exec(main)?.[1] ?? null;
-  if (CHECKIN_FAILURE.test(text)) return { checkedIn: false, userId, reason: "failed" };
+  const userId = (ATTENDEE_LINK.exec(main) ?? USER_LINK.exec(main))?.[1] ?? null;
+  // "既に出席済です" is rendered under an "イベント出席エラー" heading, so check it before failure.
   if (CHECKIN_ALREADY.test(text)) return { checkedIn: false, userId, reason: "already_checked_in" };
   if (CHECKIN_SUCCESS.test(text)) return { checkedIn: true, userId, reason: null };
+  if (CHECKIN_FAILURE.test(text)) return { checkedIn: false, userId, reason: "failed" };
   return { checkedIn: false, userId, reason: "failed" };
 }
 
