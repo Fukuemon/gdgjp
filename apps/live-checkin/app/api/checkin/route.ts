@@ -2,8 +2,8 @@
 import { withAuth } from "@/lib/middleware/auth";
 import { type NextRequest, NextResponse } from "next/server";
 
-const POST = async (req: NextRequest) =>
-  withAuth(req, "checkin", async (req, session) => {
+export async function POST(req: NextRequest) {
+  return withAuth(req, "checkin", async (req, session) => {
     const { url } = await req.json();
     // サーバー間通信で connpass API を叩く (CORSが発生しない)
     const connpassRes = await fetch("https://connpass.gdgs.jp/api/checkin", {
@@ -25,5 +25,4 @@ const POST = async (req: NextRequest) =>
 
     return NextResponse.json(data);
   });
-
-export { POST };
+}

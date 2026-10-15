@@ -13,8 +13,8 @@ function startOfTodayJst(): number {
   return Math.floor(jstNow / DAY_MS) * DAY_MS - JST_OFFSET_MS;
 }
 
-const GET = async (req: NextRequest) =>
-  withAuth(req, "events", async (req, session) => {
+export async function GET(req: NextRequest) {
+  return withAuth(req, "events", async (req, session) => {
     const connpassRes = await fetch(`https://connpass.gdgs.jp/api/groups/${GROUP_ID}/events`, {
       headers: { Authorization: `Bearer ${session.accessToken}` },
       cache: "no-store",
@@ -34,5 +34,4 @@ const GET = async (req: NextRequest) =>
 
     return NextResponse.json({ events });
   });
-
-export { GET };
+}

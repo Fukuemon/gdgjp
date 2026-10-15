@@ -2,11 +2,11 @@ import { auth, canUseQrScanner } from "@/auth";
 import type { Session } from "next-auth";
 import { type NextRequest, NextResponse } from "next/server";
 
-export const withAuth = async (
+export async function withAuth(
   req: NextRequest,
   endpointId: string,
   handler: (req: NextRequest, session: Session) => Promise<Response>,
-) => {
+): Promise<Response> {
   const session = await auth();
   if (!session?.accessToken)
     return NextResponse.json(
@@ -28,4 +28,4 @@ export const withAuth = async (
       { status: 500 },
     );
   }
-};
+}
