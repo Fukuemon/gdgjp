@@ -1712,6 +1712,13 @@ export interface operations {
                 content: {
                     "application/json": {
                         checkedIn: boolean;
+                        /** @description connpass username of the participant (connpass QR only) */
+                        userId?: string | null;
+                        /**
+                         * @description Why checkedIn is false; null on success
+                         * @enum {string|null}
+                         */
+                        reason?: "already_checked_in" | "failed" | "error" | null;
                     };
                 };
             };
