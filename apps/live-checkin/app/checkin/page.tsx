@@ -126,6 +126,7 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
     "idle" | "processing" | "success" | "duplicate" | "error"
   >("idle");
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const [promoCode, setPromoCode] = useState<string | null>(null);
 
   // 集計・重複判定（ローカル保持）
   const [checkedInCount, setCheckedInCount] = useState<number>(0);
@@ -249,6 +250,9 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
           setCheckedInCount((prev) => prev + 1);
           setScanStatus("success");
           setStatusMessage("受付完了！");
+          const code = data.promoCode ? data.promoCode : null;
+          promoCodeRef.current = code;
+          setPromoCode(code);
           playSound("success");
         } else if (data.reason === "already_checked_in") {
           // 別端末などで受付済み。以後の再読み取りはローカルでも弾く
@@ -279,6 +283,7 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
 
   // 最新のコールバックを ref で保持（カメラ effect を再実行させないため）
   const isProcessingRef = useRef(false);
+  const promoCodeRef = useRef<string | null>(null);
   const onDetectRef = useRef<(data: string) => void>(() => {});
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -293,11 +298,17 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
 
       processCheckIn(data).finally(() => {
         // 1.5秒間のチャタリング防止ガード後、次の読み取り待機へ復帰
-        resetTimerRef.current = setTimeout(() => {
-          setScanStatus("idle");
-          setStatusMessage("");
-          isProcessingRef.current = false;
-        }, 1500);
+        resetTimerRef.current = setTimeout(
+          () => {
+            setScanStatus("idle");
+            setStatusMessage("");
+            setPromoCode(null);
+            promoCodeRef.current = null;
+            isProcessingRef.current = false;
+          },
+          // プロモーションコードは読み取る時間を確保するため長めに表示する
+          promoCodeRef.current ? 6000 : 1500,
+        );
       });
     },
     [processCheckIn],
@@ -481,6 +492,14 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
           ) : (
             <div className="space-y-2 animate-bounce">
               <p className="text-3xl font-extrabold tracking-wide">{statusMessage}</p>
+              {scanStatus === "success" && promoCode && (
+                <div className="mt-4 rounded-xl bg-white/90 px-6 py-3 text-zinc-900">
+                  <p className="text-xs font-medium">プロモーションコード</p>
+                  <p className="select-all font-mono text-3xl font-extrabold tracking-widest">
+                    {promoCode}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
