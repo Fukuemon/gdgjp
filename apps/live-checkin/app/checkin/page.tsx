@@ -128,10 +128,9 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [promoCode, setPromoCode] = useState<string | null>(null);
 
-  // 集計・重複判定（ローカル保持）
+  // 集計
   const [checkedInCount, setCheckedInCount] = useState<number>(0);
   const [totalExpected, setTotalExpected] = useState<number>(0);
-  const scannedURLsRef = useRef<Set<string>>(new Set());
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -204,14 +203,6 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
         return;
       }
 
-      // 重複チェック
-      if (scannedURLsRef.current.has(qrText)) {
-        setScanStatus("duplicate");
-        setStatusMessage("処理済みです（重複）");
-        playSound("duplicate");
-        return;
-      }
-
       const { isValid } = validateCheckInURL(qrText, eventId);
       if (!isValid) {
         // 正規表現にマッチしない（対象外のQRコード）場合はここで弾いて処理を中断
@@ -246,7 +237,6 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
 
         if (data.checkedIn) {
           // 成功処理
-          scannedURLsRef.current.add(qrText);
           setCheckedInCount((prev) => prev + 1);
           setScanStatus("success");
           setStatusMessage("受付完了！");
@@ -255,8 +245,7 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
           setPromoCode(code);
           playSound("success");
         } else if (data.reason === "already_checked_in") {
-          // 別端末などで受付済み。以後の再読み取りはローカルでも弾く
-          scannedURLsRef.current.add(qrText);
+          // 別端末などで受付済み
           setScanStatus("duplicate");
           setStatusMessage("既に受付済みです");
           playSound("duplicate");
