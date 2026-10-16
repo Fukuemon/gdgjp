@@ -1,6 +1,6 @@
 // app/api/events/route.ts
-import { auth, canUseQrScanner } from "@/auth";
-import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/middleware/auth";
+import { type NextRequest, NextResponse } from "next/server";
 
 const GROUP_ID = "gdgkwansai";
 const MAX_EVENTS = 3;
@@ -13,24 +13,8 @@ function startOfTodayJst(): number {
   return Math.floor(jstNow / DAY_MS) * DAY_MS - JST_OFFSET_MS;
 }
 
-export async function GET() {
-  const session = await auth();
-
-  if (!session?.accessToken) {
-    return NextResponse.json(
-      { error: "認証が必要です。ログインし直してください。" },
-      { status: 401 },
-    );
-  }
-
-  if (!canUseQrScanner(session.user.chapters)) {
-    return NextResponse.json(
-      { error: "このチャプターのメンバーのみ利用できます。" },
-      { status: 403 },
-    );
-  }
-
-  try {
+export async function GET(req: NextRequest) {
+  return withAuth(req, "events", async (req, session) => {
     const connpassRes = await fetch(`https://connpass.gdgs.jp/api/groups/${GROUP_ID}/events`, {
       headers: { Authorization: `Bearer ${session.accessToken}` },
       cache: "no-store",
@@ -49,11 +33,5 @@ export async function GET() {
       .slice(0, MAX_EVENTS);
 
     return NextResponse.json({ events });
-  } catch (error) {
-    console.error("Events Proxy Error:", error);
-    return NextResponse.json(
-      { error: "サーバー間リクエストでエラーが発生しました" },
-      { status: 500 },
-    );
-  }
+  });
 }
