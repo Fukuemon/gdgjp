@@ -17,10 +17,13 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-    const data: CheckInResponse = await connpassRes.json();
+    const data = await connpassRes.json().catch(() => null);
 
     if (!connpassRes.ok) {
-      return NextResponse.json(data, { status: connpassRes.status });
+      return NextResponse.json(
+        { ...(data ?? {}), error: data?.error ?? "upstream_error", upstream: true },
+        { status: connpassRes.status },
+      );
     }
 
     return NextResponse.json(data);
