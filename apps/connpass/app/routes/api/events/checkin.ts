@@ -52,9 +52,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
   try {
     const result = await checkIn();
     if (result === "forbidden") return Response.json({ error: "forbidden" }, { status: 403 });
-    return Response.json(result);
+    // Promo lookup only on a fresh check-in; userId is null for Luma, so it yields null there.
+    const promoCode =
+      result.checkedIn && result.userId ? await env.PROMO_USERS_KV.get(result.userId) : null;
+    return Response.json({ ...result, promoCode });
   } catch (error) {
     console.error(connpassCheckin ? "connpass_checkin_failed" : "luma_checkin_failed", error);
-    return Response.json({ checkedIn: false, userId: null, reason: "error" });
+    return Response.json({ checkedIn: false, userId: null, reason: "error", promoCode: null });
   }
 }

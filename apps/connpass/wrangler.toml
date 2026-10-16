@@ -32,6 +32,10 @@ migrations_dir = "./migrations"
 binding = "SESSION_KV"
 id = "7b0e65b4110d49c28a291334659b501e"
 
+[[kv_namespaces]]
+binding = "PROMO_USERS_KV"
+id = "<Cloudflareで作成したPROMO_USERS_KVのID>"
+
 [[r2_buckets]]
 binding = "ARTIFACTS"
 bucket_name = "gdgjp-connpass-artifacts"

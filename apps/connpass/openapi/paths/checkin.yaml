@@ -45,6 +45,10 @@ post:
                 nullable: true
                 enum: [already_checked_in, failed, error, null]
                 description: Why checkedIn is false; null on success
+              promoCode:
+                type: string
+                nullable: true
+                description: Promo code registered for userId in PROMO_USERS_KV; null when none or not checked in
     "400": {$ref: ../components/responses/common.yaml#/BadRequest}
     "401": {$ref: ../components/responses/common.yaml#/Unauthorized}
     "403": {$ref: ../components/responses/common.yaml#/Forbidden}
