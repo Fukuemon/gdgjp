@@ -285,7 +285,6 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
   const isProcessingRef = useRef(false);
   const promoCodeRef = useRef<string | null>(null);
   const onDetectRef = useRef<(data: string) => void>(() => {});
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // QR読み取り検出ハンドラ
   const handleCodeDetected = useCallback(
@@ -296,32 +295,28 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
       setScanStatus("processing");
       setStatusMessage("処理中...");
 
-      processCheckIn(data).finally(() => {
-        // 1.5秒間のチャタリング防止ガード後、次の読み取り待機へ復帰
-        resetTimerRef.current = setTimeout(
-          () => {
-            setScanStatus("idle");
-            setStatusMessage("");
-            setPromoCode(null);
-            promoCodeRef.current = null;
-            isProcessingRef.current = false;
-          },
-          // プロモーションコードは読み取る時間を確保するため長めに表示する
-          promoCodeRef.current ? 6000 : 1500,
-        );
-      });
+      // 結果表示は自動で消さず、「次に進む」ボタン（handleNext）でスキャンを再開する
+      void processCheckIn(data);
     },
     [processCheckIn],
   );
+
+  // 「次に進む」: 結果表示を閉じて次の読み取り待機へ復帰
+  const handleNext = useCallback(() => {
+    setScanStatus("idle");
+    setStatusMessage("");
+    setPromoCode(null);
+    promoCodeRef.current = null;
+    isProcessingRef.current = false;
+  }, []);
 
   useEffect(() => {
     onDetectRef.current = handleCodeDetected;
   }, [handleCodeDetected]);
 
-  // アンマウント時にタイマーと AudioContext を解放
+  // アンマウント時に AudioContext を解放
   useEffect(
     () => () => {
-      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
       audioCtxRef.current?.close().catch(() => {});
     },
     [],
@@ -490,16 +485,25 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
               <p className="text-lg font-bold tracking-wide">{statusMessage}</p>
             </div>
           ) : (
-            <div className="space-y-2 animate-bounce">
-              <p className="text-3xl font-extrabold tracking-wide">{statusMessage}</p>
-              {scanStatus === "success" && promoCode && (
-                <div className="mt-4 rounded-xl bg-white/90 px-6 py-3 text-zinc-900">
-                  <p className="text-xs font-medium">プロモーションコード</p>
-                  <p className="select-all font-mono text-3xl font-extrabold tracking-widest">
-                    {promoCode}
-                  </p>
-                </div>
-              )}
+            <div className="flex flex-col items-center gap-4">
+              <div className="space-y-2 animate-bounce">
+                <p className="text-3xl font-extrabold tracking-wide">{statusMessage}</p>
+                {scanStatus === "success" && promoCode && (
+                  <div className="mt-4 rounded-xl bg-white/90 px-6 py-3 text-zinc-900">
+                    <p className="text-xs font-medium">プロモーションコード</p>
+                    <p className="select-all font-mono text-3xl font-extrabold tracking-widest">
+                      {promoCode}
+                    </p>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleNext}
+                className="rounded-full bg-white px-8 py-3 text-lg font-bold text-zinc-900 shadow-md transition hover:bg-zinc-100 active:scale-95"
+              >
+                次に進む
+              </button>
             </div>
           )}
         </div>
