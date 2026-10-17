@@ -10,9 +10,11 @@
   floating bar, status lamps and diagnostics.
 - `features/auth/` owns relying-party sessions and chapter membership (copied from roster).
 - `lib/frame.ts` is the single shared requestAnimationFrame loop.
-- `workers/mc-room.ts` is the only Durable Object (`getByName("main")`). It stores the player
-  token, played marks, loop settings and the event log in synchronous KV; per-socket state lives
-  in hibernation attachments.
+- `workers/mc-room.ts` is the only Durable Object class, one instance per track
+  (`getByName("track:<id>")`): each track is an isolated channel. It stores that track's player
+  token, played marks, loop settings and event log in synchronous KV, and refuses clips from
+  other tracks; per-socket state lives in hibernation attachments. The controller re-keys its
+  room provider on tab change, so switching tracks switches channels.
 
 Reliability rules:
 

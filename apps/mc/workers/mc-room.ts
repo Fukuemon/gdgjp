@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { getClip } from "../app/features/clips/catalog";
+import { getClip, playableOn } from "../app/features/clips/catalog";
 import {
   type ControllerMessage,
   type LogEntry,
@@ -28,8 +28,8 @@ type Attachment = {
 const LOG_LIMIT = 200;
 
 /**
- * The single relay between controller pages and OBS player pages
- * (addressed as `env.MC_ROOM.getByName("main")`).
+ * The relay between one track's controller pages and its OBS player pages
+ * (addressed as `env.MC_ROOM.getByName("track:<id>")`, one room per track).
  *
  * - Sockets are hibernatable; per-socket metadata lives in the attachment so
  *   it survives eviction.
@@ -89,6 +89,11 @@ export class McRoom extends DurableObject<Env> {
     const role = url.searchParams.get("role");
     if (role !== "controller" && role !== "player") {
       return new Response("bad role", { status: 400 });
+    }
+    // The Worker routes by track; remember which one this room serves.
+    const track = url.searchParams.get("track");
+    if (track && this.ctx.storage.kv.get<string>("track") !== track) {
+      this.ctx.storage.kv.put("track", track);
     }
     // Controllers are authenticated by the Worker before reaching here;
     // players present the room's token.
@@ -168,7 +173,8 @@ export class McRoom extends DurableObject<Env> {
     switch (msg.type) {
       case "cmd": {
         const { id, cmd } = msg;
-        if (cmd.kind === "play" && !getClip(cmd.clipId)) {
+        const clip = cmd.kind === "play" ? getClip(cmd.clipId) : undefined;
+        if (cmd.kind === "play" && (!clip || !this.serves(clip))) {
           this.reply(att.connId, { type: "result", id, ok: false, reason: "unknown-clip" });
           return;
         }
@@ -190,7 +196,8 @@ export class McRoom extends DurableObject<Env> {
         return;
       }
       case "setLoop": {
-        if (!getClip(msg.clipId)) return;
+        const loopClip = getClip(msg.clipId);
+        if (!loopClip || !this.serves(loopClip)) return;
         const loops = this.config.loops;
         loops[msg.clipId] = {
           enabled: Boolean(msg.setting.enabled),
@@ -222,6 +229,11 @@ export class McRoom extends DurableObject<Env> {
         return;
       }
     }
+  }
+
+  private serves(clip: NonNullable<ReturnType<typeof getClip>>): boolean {
+    const track = this.ctx.storage.kv.get<string>("track");
+    return track ? playableOn(clip, track) : true;
   }
 
   private setPlayed(clipId: string, value: boolean) {

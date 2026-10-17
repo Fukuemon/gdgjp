@@ -22,16 +22,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 const TAB_KEY = "mc-tab";
 
 export default function Controller() {
-  return (
-    <ControllerProvider>
-      <ControllerScreen />
-    </ControllerProvider>
-  );
-}
-
-function ControllerScreen() {
   const [tab, setTab] = useState(tracks[0]?.id ?? "");
-  const [diagOpen, setDiagOpen] = useState(false);
   // Each tab remembers its own window scroll position.
   const scroll = useRef<Record<string, number>>({});
 
@@ -58,8 +49,21 @@ function ControllerScreen() {
     }
   };
 
+  // The selected track is also the channel: track A's controller only ever
+  // talks to track A's player. Re-keying drops the previous channel entirely.
   return (
     <Tabs value={tab} onValueChange={changeTab} className="mc-app">
+      <ControllerProvider key={tab} track={tab}>
+        <ControllerScreen />
+      </ControllerProvider>
+    </Tabs>
+  );
+}
+
+function ControllerScreen() {
+  const [diagOpen, setDiagOpen] = useState(false);
+  return (
+    <>
       <header className="mc-header">
         <div className="mc-header-row">
           <TabsList className="mc-tabs" aria-label="トラック">
@@ -85,6 +89,6 @@ function ControllerScreen() {
       </main>
       <NowPlayingBar />
       <DiagnosticsSheet open={diagOpen} onOpenChange={setDiagOpen} />
-    </Tabs>
+    </>
   );
 }

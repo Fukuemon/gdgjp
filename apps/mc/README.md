@@ -3,13 +3,15 @@
 DevFest Kansai 2026 の司会を、事前に生成した AI 音声で遠隔操作するアプリ。
 
 - 司会PC: `https://mc.gdgs.jp/`（GDG チャプターメンバーのみ）。トラックごとのタブから音声を再生・停止する。
-- 配信PC: OBS の Browser Source に `https://mc.gdgs.jp/play?t=<token>` を読み込む。画面には何も描画せず、音声だけを出す。
+- 配信PC: OBS の Browser Source に `https://mc.gdgs.jp/play?track=<A|B|C>&t=<token>` を読み込む。画面には何も描画せず、音声だけを出す。
 
-二台の間は `McRoom` Durable Object が WebSocket で中継する。
+トラックごとに独立したチャネル（`McRoom` Durable Object、トラックごとに1つ）が WebSocket で中継する。
+司会PCは左上で選んだトラックのチャネルにつながり、A の司会PC は A の配信PC だけを操作する。
+共通の予備音声は、選択中トラックの配信PCで再生される。
 
 ## 配信PC（OBS）のセットアップ
 
-1. 配信PCのブラウザで `https://mc.gdgs.jp/` を開き、診断パネル（右上の波形アイコン）の Player URL をコピーする。
+1. 配信PCのブラウザで `https://mc.gdgs.jp/` を開き、左上でそのPCのトラックを選んでから、診断パネル（右上の波形アイコン）の `Player URL (Track X)` をコピーする。トークンはトラックごとに別。
 2. OBS で Browser Source を追加し、URL に貼り付ける。
    - 「OBS で音声を制御する」を **ON**（ミキサーに音声が出る）
    - 「表示されていないときにソースをシャットダウン」を **OFF**（シーン切り替えで切断されないように）
@@ -17,7 +19,7 @@ DevFest Kansai 2026 の司会を、事前に生成した AI 音声で遠隔操�
 3. 配信PCで開いた司会画面は閉じる。司会PCの右上のランプが青になれば接続済み。
 4. OBS ミキサーでこのソースの音量・ミュートを確認する（ブラウザ側からは検知できない唯一の項目）。
 
-Player URL を再発行すると古い URL は即座に無効になる。本番中は再発行しないこと。
+Player URL を再発行すると、そのトラックの古い URL は即座に無効になる。本番中は再発行しないこと。
 
 ## 音が出ないとき
 

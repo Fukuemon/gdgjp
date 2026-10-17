@@ -6,12 +6,14 @@ test("unauthenticated visitor to / is redirected to signin", async ({ request })
   expect(response.headers().location).toBe("/signin?return_to=%2F");
 });
 
-async function openController(page: Page): Promise<string> {
+async function openController(page: Page, track = "A"): Promise<string> {
   await page.goto("/dev/login?as=e2e&return_to=/");
-  await expect(page.getByRole("tab", { name: "A" })).toBeVisible();
+  await page.getByRole("tab", { name: track }).click();
+  await expect(page.getByRole("tab", { name: track })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("button", { name: "診断" }).click();
+  await expect(page.getByText(`Player URL (Track ${track})`)).toBeVisible();
   const url = page.getByTestId("player-url");
-  await expect(url).toHaveValue(/\/play\?t=[0-9a-f]{64}$/);
+  await expect(url).toHaveValue(new RegExp(`/play\\?track=${track}&t=[0-9a-f]{64}$`));
   const playerUrl = await url.inputValue();
   await page.keyboard.press("Escape");
   return playerUrl;
@@ -100,4 +102,43 @@ test("a player with a wrong token never counts as connected", async ({ page, bro
   await page.waitForTimeout(2000);
   await expect(page.getByTestId("player-lamp")).toHaveAttribute("data-state", "down");
   await player.context().close();
+});
+
+test("each track is its own channel", async ({ page, browser }) => {
+  const urlA = await openController(page, "A");
+  const playerA = await openPlayer(browser, urlA);
+  await expect(page.getByTestId("player-lamp")).toHaveAttribute("data-state", "ok");
+
+  // Track B has its own Player URL and does not see A's player.
+  await page.getByRole("tab", { name: "B" }).click();
+  await page.getByRole("button", { name: "診断" }).click();
+  const urlB = await page.getByTestId("player-url").inputValue();
+  await page.keyboard.press("Escape");
+  expect(urlB).toMatch(/\/play\?track=B&t=[0-9a-f]{64}$/);
+  expect(new URL(urlB).searchParams.get("t")).not.toBe(new URL(urlA).searchParams.get("t"));
+  await expect(page.getByTestId("player-lamp")).toHaveAttribute("data-state", "down", {
+    timeout: 6000,
+  });
+  await page.locator(".mc-card").first().getByRole("button", { name: "再生", exact: true }).click();
+  await expect(page.getByText("配信PCが接続されていません").first()).toBeVisible();
+
+  // A's token is rejected by B's room.
+  const crossed = await openPlayer(
+    browser,
+    urlB.replace(/t=[0-9a-f]+$/, `t=${new URL(urlA).searchParams.get("t")}`),
+  );
+  await page.waitForTimeout(2000);
+  await expect(page.getByTestId("player-lamp")).toHaveAttribute("data-state", "down");
+  await crossed.context().close();
+
+  // Back on A, A's player is still there and plays.
+  await page.getByRole("tab", { name: "A" }).click();
+  await expect(page.getByTestId("player-lamp")).toHaveAttribute("data-state", "ok");
+  const card = page.locator(".mc-card").first();
+  await card.getByRole("button", { name: "再生", exact: true }).click();
+  await expect(card).toHaveAttribute("data-status", "playing");
+  await page.locator(".mc-bar").getByRole("button", { name: "停止" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "停止する" }).click();
+  await expect(card).toHaveAttribute("data-status", "paused");
+  await playerA.context().close();
 });

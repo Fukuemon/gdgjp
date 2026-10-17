@@ -31,12 +31,12 @@ export type RoomView = {
 const LOG_LIMIT = 200;
 
 /**
- * Controller-side room connection: one ReliableSocket, the room snapshot, and
+ * Controller-side connection to one track's room: one ReliableSocket, the room snapshot, and
  * ack-tracked commands. Player liveness is judged locally from frame arrival
  * (players report at least once a second), so a dead player shows within
  * STALE_MS even if the room never notices a close.
  */
-export function useControllerRoom() {
+export function useControllerRoom(track: string) {
   const [socket, setSocket] = useState<SocketStatus>("connecting");
   const [rtt, setRtt] = useState<number | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -102,7 +102,7 @@ export function useControllerRoom() {
     const s = new ReliableSocket({
       url: () => {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        return `${protocol}//${window.location.host}/ws?role=controller`;
+        return `${protocol}//${window.location.host}/ws?role=controller&track=${encodeURIComponent(track)}`;
       },
       onMessage,
       onStatus: (status) => {
@@ -122,7 +122,7 @@ export function useControllerRoom() {
       s.stop();
       socketRef.current = null;
     };
-  }, [acks]);
+  }, [acks, track]);
 
   const views = useMemo(() => {
     void tick;

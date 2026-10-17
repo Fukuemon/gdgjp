@@ -17,10 +17,10 @@ export function DiagnosticsSheet({
   open,
   onOpenChange,
 }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const { room, confirmExtra, rotateToken, resetPlayed } = useController();
+  const { track, room, confirmExtra, rotateToken, resetPlayed } = useController();
   const playerUrl =
     room.token && typeof window !== "undefined"
-      ? `${window.location.origin}/play?t=${room.token}`
+      ? `${window.location.origin}/play?track=${track}&t=${room.token}`
       : "";
   const issues = issuesOf(room);
 
@@ -44,10 +44,15 @@ export function DiagnosticsSheet({
 
         <section className="mc-diag-section">
           <h3 className="mc-diag-heading">
-            <Icons name="Link" size={18} aria-hidden="true" /> Player URL
+            <Icons name="Link" size={18} aria-hidden="true" /> Player URL (Track {track})
           </h3>
           <div className="mc-diag-url">
-            <Input readOnly value={playerUrl} aria-label="Player URL" data-testid="player-url" />
+            <Input
+              readOnly
+              value={playerUrl}
+              aria-label={`Player URL (Track ${track})`}
+              data-testid="player-url"
+            />
             <IconButton
               aria-label="コピー"
               variant="secondary"

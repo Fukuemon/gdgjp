@@ -1,7 +1,7 @@
 import { Icons } from "@gdgjp/design-system";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { clips } from "~/features/clips/catalog";
+import { clipsForTrack } from "~/features/clips/catalog";
 import { PlayerEngine } from "~/features/playback/player-engine";
 import {
   type LogEntry,
@@ -28,6 +28,7 @@ export function meta() {
 export default function Play() {
   const [params] = useSearchParams();
   const token = params.get("t") ?? "";
+  const track = params.get("track") ?? "";
   const engineRef = useRef<PlayerEngine | null>(null);
   const [blocked, setBlocked] = useState(false);
 
@@ -40,7 +41,8 @@ export default function Play() {
       if (backlog.length > 50) backlog.shift();
     };
 
-    const engine = new PlayerEngine(clips, log);
+    // Only this track's channel can ask for clips, so only those are preloaded.
+    const engine = new PlayerEngine(clipsForTrack(track), log);
     engineRef.current = engine;
     let lastReport = 0;
     const report = () => {
@@ -50,7 +52,7 @@ export default function Play() {
     socket = new ReliableSocket({
       url: () => {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        return `${protocol}//${window.location.host}/ws?role=player&t=${encodeURIComponent(token)}`;
+        return `${protocol}//${window.location.host}/ws?role=player&track=${encodeURIComponent(track)}&t=${encodeURIComponent(token)}`;
       },
       onStatus: () => {},
       onOpen: () => {
@@ -102,7 +104,7 @@ export default function Play() {
       engine.destroy();
       engineRef.current = null;
     };
-  }, [token]);
+  }, [token, track]);
 
   if (!blocked) return null;
   return (

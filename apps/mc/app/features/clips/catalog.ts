@@ -34,6 +34,15 @@ export const tracks: { id: string; clips: Clip[] }[] = [...new Set(clips.map((c)
   .sort()
   .map((id) => ({ id, clips: clips.filter((c) => c.track === id) }));
 
-export function clipText(clip: Clip): string {
-  return clip.segments.map((s) => s.t).join("");
+export function isTrack(id: string | null | undefined): id is string {
+  return tracks.some((t) => t.id === id);
+}
+
+/** A track's channel plays that track's clips plus the shared standby clips. */
+export function playableOn(clip: Clip, track: string): boolean {
+  return clip.track === null || clip.track === track;
+}
+
+export function clipsForTrack(track: string): Clip[] {
+  return clips.filter((c) => playableOn(c, track));
 }

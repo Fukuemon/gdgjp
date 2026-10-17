@@ -48,6 +48,8 @@ export const failureText: Record<FailureReason, string> = {
 };
 
 type Ctx = {
+  /** The track whose channel (room) this controller is attached to. */
+  track: string;
   room: RoomView;
   /** The clip the floating bar shows: the player's, or the last one we saw. */
   now: Now & { state: PlayerState | null };
@@ -84,8 +86,12 @@ function readCues(): Record<string, number> {
   }
 }
 
-export function ControllerProvider({ children }: { children: ReactNode }) {
-  const { room, send, setLoop, setPlayed, resetPlayed, rotateToken } = useControllerRoom();
+/**
+ * Mount with `key={track}`: switching tracks must drop every piece of the
+ * previous channel's state (socket, player view, last known clip).
+ */
+export function ControllerProvider({ track, children }: { track: string; children: ReactNode }) {
+  const { room, send, setLoop, setPlayed, resetPlayed, rotateToken } = useControllerRoom(track);
   const [cues, setCues] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<{
@@ -171,6 +177,7 @@ export function ControllerProvider({ children }: { children: ReactNode }) {
   );
 
   const value: Ctx = {
+    track,
     room,
     now,
     primaryRef,
@@ -196,7 +203,7 @@ export function ControllerProvider({ children }: { children: ReactNode }) {
     <ControllerContext.Provider value={value}>
       {children}
       <AlertDialog open={dialog !== null} onOpenChange={(open) => !open && close(false)}>
-        <AlertDialogContent className="mc-confirm">
+        <AlertDialogContent className="mc-confirm" aria-describedby={undefined}>
           <AlertDialogTitle>{dialog?.copy.title}</AlertDialogTitle>
           <div className="mc-confirm-actions">
             <AlertDialogCancel asChild>

@@ -35,8 +35,9 @@ Applications live in `apps/` and shared libraries in `packages/`. Workspace glob
   `apps/accounts/` relying-party routes gated by GDG chapter membership; staff self-registration and
   the published shift view are separate public/sign-in-only surfaces.
 - `apps/mc/` is the remote MC audio player (`mc.gdgs.jp`): the operator controller (an
-  `apps/accounts/` relying party gated by chapter membership) sends commands through one
-  `McRoom` Durable Object to an OBS Browser Source player page (`/play?t=<token>`). Clip audio
+  `apps/accounts/` relying party gated by chapter membership) sends commands through a
+  per-track `McRoom` Durable Object (one channel per track) to that track's OBS Browser Source
+  player page (`/play?track=<id>&t=<token>`). Clip audio
   and timestamped transcripts are generated offline into `public/audio/` and `clips.json`
   (`scripts/build-clips.mjs`); the source `音声/` and `原稿/` folders are never committed.
 - `packages/gdg-lib/` is the source-only shared TypeScript package (`@gdgjp/gdg-lib`) for relying-party
