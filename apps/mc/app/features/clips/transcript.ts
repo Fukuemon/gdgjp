@@ -42,6 +42,12 @@ export function marqueeOffset(params: {
   return -Math.min(overflow, Math.max(0, ideal));
 }
 
+/** Time left, rounded up so it reads the full length at 0 and hits 0:00 only at the end. */
+export function formatRemaining(durationMs: number, positionMs: number): string {
+  const left = Math.max(0, durationMs - positionMs);
+  return formatTime(Math.ceil(left / 1000) * 1000);
+}
+
 export function formatTime(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const m = Math.floor(total / 60);

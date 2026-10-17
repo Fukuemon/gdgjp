@@ -1,8 +1,8 @@
 import { IconButton, Icons } from "@gdgjp/design-system";
 import { memo, useCallback, useRef } from "react";
 import type { Clip } from "~/features/clips/catalog";
-import { formatTime } from "~/features/clips/transcript";
 import { primaryIntent, restartIntent, seekIntent, showsPause } from "../intent";
+import { RemainingTime } from "./RemainingTime";
 import { ScrollingText } from "./ScrollingText";
 import { SeekBar } from "./SeekBar";
 import { useController } from "./controller-context";
@@ -81,7 +81,12 @@ export const ClipCard = memo(function ClipCard({ clip }: { clip: Clip }) {
         <div className="mc-card-meta">
           <span className="mc-card-title">{clip.title}</span>
           <span className="mc-card-file">{clip.file}</span>
-          <span className="mc-card-duration">{formatTime(clip.durationMs)}</span>
+          <RemainingTime
+            className="mc-card-duration"
+            durationMs={clip.durationMs}
+            getMs={getMs}
+            live={current}
+          />
         </div>
         <SeekBar
           durationMs={clip.durationMs}

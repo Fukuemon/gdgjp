@@ -50,6 +50,14 @@ test("play is acknowledged by the player, and stopping asks first", async ({ pag
   const bar = page.locator(".mc-bar");
   await expect(bar).toBeVisible();
 
+  // While playing, the length label counts down the time left.
+  const seconds = async () => {
+    const [m, sec] = (await card.locator(".mc-card-duration").innerText()).split(":").map(Number);
+    return m * 60 + sec;
+  };
+  const first = await seconds();
+  await expect.poll(seconds, { timeout: 5000 }).toBeLessThan(first);
+
   // ⏸ is a confirmation, and cancelling keeps the sound going.
   await bar.getByRole("button", { name: "停止" }).click();
   const dialog = page.getByRole("alertdialog");

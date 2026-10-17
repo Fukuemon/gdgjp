@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { formatTime } from "~/features/clips/transcript";
+import { formatRemaining, formatTime } from "~/features/clips/transcript";
 import { onFrame, usePrefersReducedMotion } from "~/lib/frame";
 import { Smoother } from "./smoother";
 
@@ -27,6 +27,7 @@ export function SeekBar({ durationMs, getMs, onScrub, onCommit, active, label, s
   const trackRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const elapsedRef = useRef<HTMLSpanElement>(null);
+  const remainingRef = useRef<HTMLSpanElement>(null);
   const dragMs = useRef<number | null>(null);
   const [dragging, setDragging] = useState(false);
   const getMsRef = useRef(getMs);
@@ -52,6 +53,10 @@ export function SeekBar({ durationMs, getMs, onScrub, onCommit, active, label, s
         lastSec = sec;
         elapsedRef.current.textContent = formatTime(ms);
         root.setAttribute("aria-valuetext", formatTime(ms));
+      }
+      if (remainingRef.current) {
+        const left = formatRemaining(durationMs, ms);
+        if (remainingRef.current.textContent !== left) remainingRef.current.textContent = left;
       }
     });
   }, [durationMs, reduced]);
@@ -126,7 +131,11 @@ export function SeekBar({ durationMs, getMs, onScrub, onCommit, active, label, s
           <div className="mc-seek-thumb" />
         </div>
       </div>
-      {showTimes && <span className="mc-seek-time">{formatTime(durationMs)}</span>}
+      {showTimes && (
+        <span ref={remainingRef} className="mc-seek-time">
+          {formatTime(durationMs)}
+        </span>
+      )}
     </div>
   );
 }

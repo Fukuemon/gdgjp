@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Segment } from "./catalog";
-import { charOffsetAt, formatTime, marqueeOffset } from "./transcript";
+import { charOffsetAt, formatRemaining, formatTime, marqueeOffset } from "./transcript";
 
 const segments: Segment[] = [
   { s: 200, e: 1200, t: "皆さん、" }, // 4 chars
@@ -49,5 +49,16 @@ describe("formatTime", () => {
   it("formats m:ss", () => {
     expect(formatTime(0)).toBe("0:00");
     expect(formatTime(74_200)).toBe("1:14");
+  });
+});
+
+describe("formatRemaining", () => {
+  it("counts down from the full length to 0:00", () => {
+    expect(formatRemaining(52_000, 0)).toBe("0:52");
+    expect(formatRemaining(52_000, 400)).toBe("0:52");
+    expect(formatRemaining(52_000, 1000)).toBe("0:51");
+    expect(formatRemaining(52_000, 51_500)).toBe("0:01");
+    expect(formatRemaining(52_000, 52_000)).toBe("0:00");
+    expect(formatRemaining(52_000, 60_000)).toBe("0:00");
   });
 });
