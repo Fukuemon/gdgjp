@@ -126,11 +126,11 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
     "idle" | "processing" | "success" | "duplicate" | "error"
   >("idle");
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const [promoCode, setPromoCode] = useState<string | null>(null);
 
-  // 集計・重複判定（ローカル保持）
+  // 集計
   const [checkedInCount, setCheckedInCount] = useState<number>(0);
   const [totalExpected, setTotalExpected] = useState<number>(0);
-  const scannedURLsRef = useRef<Set<string>>(new Set());
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -203,14 +203,6 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
         return;
       }
 
-      // 重複チェック
-      if (scannedURLsRef.current.has(qrText)) {
-        setScanStatus("duplicate");
-        setStatusMessage("処理済みです（重複）");
-        playSound("duplicate");
-        return;
-      }
-
       const { isValid } = validateCheckInURL(qrText, eventId);
       if (!isValid) {
         // 正規表現にマッチしない（対象外のQRコード）場合はここで弾いて処理を中断
@@ -245,14 +237,15 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
 
         if (data.checkedIn) {
           // 成功処理
-          scannedURLsRef.current.add(qrText);
           setCheckedInCount((prev) => prev + 1);
           setScanStatus("success");
           setStatusMessage("受付完了！");
+          const code = data.promoCode ? data.promoCode : null;
+          promoCodeRef.current = code;
+          setPromoCode(code);
           playSound("success");
         } else if (data.reason === "already_checked_in") {
-          // 別端末などで受付済み。以後の再読み取りはローカルでも弾く
-          scannedURLsRef.current.add(qrText);
+          // 別端末などで受付済み
           setScanStatus("duplicate");
           setStatusMessage("既に受付済みです");
           playSound("duplicate");
@@ -279,8 +272,8 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
 
   // 最新のコールバックを ref で保持（カメラ effect を再実行させないため）
   const isProcessingRef = useRef(false);
+  const promoCodeRef = useRef<string | null>(null);
   const onDetectRef = useRef<(data: string) => void>(() => {});
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // QR読み取り検出ハンドラ
   const handleCodeDetected = useCallback(
@@ -291,26 +284,28 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
       setScanStatus("processing");
       setStatusMessage("処理中...");
 
-      processCheckIn(data).finally(() => {
-        // 1.5秒間のチャタリング防止ガード後、次の読み取り待機へ復帰
-        resetTimerRef.current = setTimeout(() => {
-          setScanStatus("idle");
-          setStatusMessage("");
-          isProcessingRef.current = false;
-        }, 1500);
-      });
+      // 結果表示は自動で消さず、「次に進む」ボタン（handleNext）でスキャンを再開する
+      void processCheckIn(data);
     },
     [processCheckIn],
   );
+
+  // 「次に進む」: 結果表示を閉じて次の読み取り待機へ復帰
+  const handleNext = useCallback(() => {
+    setScanStatus("idle");
+    setStatusMessage("");
+    setPromoCode(null);
+    promoCodeRef.current = null;
+    isProcessingRef.current = false;
+  }, []);
 
   useEffect(() => {
     onDetectRef.current = handleCodeDetected;
   }, [handleCodeDetected]);
 
-  // アンマウント時にタイマーと AudioContext を解放
+  // アンマウント時に AudioContext を解放
   useEffect(
     () => () => {
-      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
       audioCtxRef.current?.close().catch(() => {});
     },
     [],
@@ -479,8 +474,25 @@ function CheckInScanner({ apiToken }: { apiToken: string }) {
               <p className="text-lg font-bold tracking-wide">{statusMessage}</p>
             </div>
           ) : (
-            <div className="space-y-2 animate-bounce">
-              <p className="text-3xl font-extrabold tracking-wide">{statusMessage}</p>
+            <div className="flex flex-col items-center gap-4">
+              <div className="space-y-2 animate-bounce">
+                <p className="text-3xl font-extrabold tracking-wide">{statusMessage}</p>
+                {scanStatus === "success" && promoCode && (
+                  <div className="mt-4 rounded-xl bg-white/90 px-6 py-3 text-zinc-900">
+                    <p className="text-xs font-medium">プロモーションコード</p>
+                    <p className="select-all font-mono text-3xl font-extrabold tracking-widest">
+                      {promoCode}
+                    </p>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleNext}
+                className="rounded-full bg-white px-8 py-3 text-lg font-bold text-zinc-900 shadow-md transition hover:bg-zinc-100 active:scale-95"
+              >
+                次に進む
+              </button>
             </div>
           )}
         </div>

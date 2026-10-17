@@ -3167,6 +3167,9 @@ type CheckInParticipantResponse struct {
 	JSON200      *struct {
 		CheckedIn bool `json:"checkedIn"`
 
+		// PromoCode Promo code registered for userId in PROMO_USERS_KV; null when none or not checked in
+		PromoCode *string `json:"promoCode"`
+
 		// Reason Why checkedIn is false; null on success
 		Reason *CheckInParticipant200Reason `json:"reason"`
 
@@ -4530,6 +4533,9 @@ func ParseCheckInParticipantResponse(rsp *http.Response) (*CheckInParticipantRes
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
 			CheckedIn bool `json:"checkedIn"`
+
+			// PromoCode Promo code registered for userId in PROMO_USERS_KV; null when none or not checked in
+			PromoCode *string `json:"promoCode"`
 
 			// Reason Why checkedIn is false; null on success
 			Reason *CheckInParticipant200Reason `json:"reason"`

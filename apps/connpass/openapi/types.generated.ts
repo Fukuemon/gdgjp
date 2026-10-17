@@ -1719,6 +1719,8 @@ export interface operations {
                          * @enum {string|null}
                          */
                         reason?: "already_checked_in" | "failed" | "error" | null;
+                        /** @description Promo code registered for userId in PROMO_USERS_KV; null when none or not checked in */
+                        promoCode?: string | null;
                     };
                 };
             };
