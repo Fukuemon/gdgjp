@@ -702,6 +702,13 @@ button {
   width: min(420px, calc(100vw - 32px));
 }
 
+.mc-confirm-warning {
+  margin-top: 12px;
+  color: var(--gdg-danger);
+  font-weight: 600;
+  line-height: 1.6;
+}
+
 .mc-confirm-actions {
   display: flex;
   justify-content: flex-end;

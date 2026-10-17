@@ -66,7 +66,12 @@ export function DiagnosticsSheet({
               variant="ghost"
               disabled={!playerUrl}
               onClick={async () => {
-                if (await confirmExtra("rotateToken")) rotateToken();
+                if (
+                  (await confirmExtra("rotateToken")) &&
+                  (await confirmExtra("rotateTokenFinal"))
+                ) {
+                  rotateToken();
+                }
               }}
             >
               <Icons name="RotateCw" size={18} aria-hidden="true" />

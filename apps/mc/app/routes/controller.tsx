@@ -7,6 +7,7 @@ import { CommonShelf } from "~/features/playback/components/CommonShelf";
 import { DiagnosticsSheet } from "~/features/playback/components/DiagnosticsSheet";
 import { NowPlayingBar } from "~/features/playback/components/NowPlayingBar";
 import { IssueStrip, StatusCluster } from "~/features/playback/components/StatusCluster";
+import { ConfirmProvider, useConfirm } from "~/features/playback/components/confirm";
 import { ControllerProvider } from "~/features/playback/components/controller-context";
 import type { Route } from "./+types/controller";
 
@@ -22,6 +23,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 const TAB_KEY = "mc-tab";
 
 export default function Controller() {
+  return (
+    <ConfirmProvider>
+      <TrackChannels />
+    </ConfirmProvider>
+  );
+}
+
+function TrackChannels() {
+  const confirm = useConfirm();
   const [tab, setTab] = useState(tracks[0]?.id ?? "");
   // Each tab remembers its own window scroll position.
   const scroll = useRef<Record<string, number>>({});
@@ -39,7 +49,14 @@ export default function Controller() {
     window.scrollTo({ top: scroll.current[tab] ?? 0, behavior: "instant" });
   }, [tab]);
 
-  const changeTab = (next: string) => {
+  // Switching tracks switches which streaming PC this screen controls.
+  const changeTab = async (next: string) => {
+    if (next === tab) return;
+    const ok = await confirm({
+      title: `トラック ${next} に切り替えますか？`,
+      action: "切り替える",
+    });
+    if (!ok) return;
     scroll.current[tab] = window.scrollY;
     setTab(next);
     try {
@@ -52,14 +69,19 @@ export default function Controller() {
   // The selected track is also the channel: track A's controller only ever
   // talks to track A's player. Re-keying drops the previous channel entirely.
   return (
-    <Tabs value={tab} onValueChange={changeTab} className="mc-app">
+    <Tabs
+      value={tab}
+      onValueChange={changeTab}
+      // Arrow keys only move focus; switching (and its confirmation) needs Enter/click.
+      activationMode="manual"
+      className="mc-app"
+    >
       <ControllerProvider key={tab} track={tab}>
         <ControllerScreen />
       </ControllerProvider>
     </Tabs>
   );
 }
-
 function ControllerScreen() {
   const [diagOpen, setDiagOpen] = useState(false);
   return (

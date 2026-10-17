@@ -1,12 +1,4 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogTitle,
-  Button,
-  toast,
-} from "@gdgjp/design-system";
+import { toast } from "@gdgjp/design-system";
 import {
   type ReactNode,
   createContext,
@@ -27,14 +19,25 @@ import {
   positionAt,
   useControllerRoom,
 } from "../use-controller-room";
+import { type ConfirmCopy, useConfirm } from "./confirm";
 
-/** Extra confirmations that are not playback commands. */
-type ExtraConfirm = "resetPlayed" | "rotateToken";
+/** Confirmations that are not playback commands. */
+export function extraCopy(track: string) {
+  return {
+    resetPlayed: { title: "再生済みをリセットしますか？", action: "リセットする" },
+    rotateToken: { title: "Player URL を再発行しますか？", action: "再発行する" },
+    // Asked right after rotateToken: the one action here that can silently
+    // take a track off air until someone re-configures OBS.
+    rotateTokenFinal: {
+      title: "本当に Player URL を再発行しますか？",
+      description: `配信PCの OBS に設定済みの Player URL (Track ${track}) は即座に無効になります。新しい URL を OBS に設定し直すまで、トラック ${track} の音声は配信されません。`,
+      action: "再発行する",
+      danger: true,
+    },
+  } satisfies Record<string, ConfirmCopy>;
+}
 
-const extraCopy: Record<ExtraConfirm, { title: string; action: string }> = {
-  resetPlayed: { title: "再生済みをリセットしますか？", action: "リセットする" },
-  rotateToken: { title: "Player URL を再発行しますか？", action: "再発行する" },
-};
+type ExtraConfirm = keyof ReturnType<typeof extraCopy>;
 
 export const failureText: Record<FailureReason, string> = {
   offline: "司会PCがオフラインです",
@@ -94,10 +97,6 @@ export function ControllerProvider({ track, children }: { track: string; childre
   const { room, send, setLoop, setPlayed, resetPlayed, rotateToken } = useControllerRoom(track);
   const [cues, setCues] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState<Set<string>>(new Set());
-  const [dialog, setDialog] = useState<{
-    copy: { title: string; action: string };
-    resolve: (ok: boolean) => void;
-  } | null>(null);
 
   useEffect(() => setCues(readCues()), []);
 
@@ -132,11 +131,7 @@ export function ControllerProvider({ track, children }: { track: string; childre
     });
   }, []);
 
-  const ask = useCallback(
-    (copy: { title: string; action: string }) =>
-      new Promise<boolean>((resolve) => setDialog({ copy, resolve })),
-    [],
-  );
+  const ask = useConfirm();
 
   const run = useCallback(
     async (key: string, intent: Intent) => {
@@ -186,7 +181,7 @@ export function ControllerProvider({ track, children }: { track: string; childre
     setCue,
     busy,
     run,
-    confirmExtra: (kind) => ask(extraCopy[kind]),
+    confirmExtra: (kind) => ask(extraCopy(track)[kind]),
     setLoop,
     setPlayed,
     resetPlayed,
@@ -194,31 +189,5 @@ export function ControllerProvider({ track, children }: { track: string; childre
     loopOf,
   };
 
-  const close = (ok: boolean) => {
-    dialog?.resolve(ok);
-    setDialog(null);
-  };
-
-  return (
-    <ControllerContext.Provider value={value}>
-      {children}
-      <AlertDialog open={dialog !== null} onOpenChange={(open) => !open && close(false)}>
-        <AlertDialogContent className="mc-confirm" aria-describedby={undefined}>
-          <AlertDialogTitle>{dialog?.copy.title}</AlertDialogTitle>
-          <div className="mc-confirm-actions">
-            <AlertDialogCancel asChild>
-              <Button variant="outline" onClick={() => close(false)}>
-                キャンセル
-              </Button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button variant="primary" onClick={() => close(true)}>
-                {dialog?.copy.action}
-              </Button>
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
-    </ControllerContext.Provider>
-  );
+  return <ControllerContext.Provider value={value}>{children}</ControllerContext.Provider>;
 }

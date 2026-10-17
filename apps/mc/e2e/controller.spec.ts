@@ -6,10 +6,18 @@ test("unauthenticated visitor to / is redirected to signin", async ({ request })
   expect(response.headers().location).toBe("/signin?return_to=%2F");
 });
 
+async function switchTrack(page: Page, track: string) {
+  await page.getByRole("tab", { name: track }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog.getByText(`トラック ${track} に切り替えますか？`)).toBeVisible();
+  await dialog.getByRole("button", { name: "切り替える" }).click();
+  await expect(page.getByRole("tab", { name: track })).toHaveAttribute("aria-selected", "true");
+}
+
 async function openController(page: Page, track = "A"): Promise<string> {
   await page.goto("/dev/login?as=e2e&return_to=/");
-  await page.getByRole("tab", { name: track }).click();
-  await expect(page.getByRole("tab", { name: track })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "A" })).toHaveAttribute("aria-selected", "true");
+  if (track !== "A") await switchTrack(page, track);
   await page.getByRole("button", { name: "診断" }).click();
   await expect(page.getByText(`Player URL (Track ${track})`)).toBeVisible();
   const url = page.getByTestId("player-url");
@@ -110,7 +118,7 @@ test("each track is its own channel", async ({ page, browser }) => {
   await expect(page.getByTestId("player-lamp")).toHaveAttribute("data-state", "ok");
 
   // Track B has its own Player URL and does not see A's player.
-  await page.getByRole("tab", { name: "B" }).click();
+  await switchTrack(page, "B");
   await page.getByRole("button", { name: "診断" }).click();
   const urlB = await page.getByTestId("player-url").inputValue();
   await page.keyboard.press("Escape");
@@ -132,7 +140,7 @@ test("each track is its own channel", async ({ page, browser }) => {
   await crossed.context().close();
 
   // Back on A, A's player is still there and plays.
-  await page.getByRole("tab", { name: "A" }).click();
+  await switchTrack(page, "A");
   await expect(page.getByTestId("player-lamp")).toHaveAttribute("data-state", "ok");
   const card = page.locator(".mc-card").first();
   await card.getByRole("button", { name: "再生", exact: true }).click();
@@ -141,4 +149,35 @@ test("each track is its own channel", async ({ page, browser }) => {
   await page.getByRole("alertdialog").getByRole("button", { name: "停止する" }).click();
   await expect(card).toHaveAttribute("data-status", "paused");
   await playerA.context().close();
+});
+
+test("switching tracks asks first, and cancelling stays put", async ({ page }) => {
+  await openController(page);
+  await page.getByRole("tab", { name: "B" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "キャンセル" }).click();
+  await expect(page.getByRole("tab", { name: "A" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".mc-card-file").first()).toHaveText("01_0930");
+});
+
+test("reissuing the Player URL needs two confirmations", async ({ page }) => {
+  const before = await openController(page);
+  await page.getByRole("button", { name: "診断" }).click();
+  const dialog = page.getByRole("alertdialog");
+
+  // Backing out at the second, warning step keeps the URL.
+  await page.getByRole("button", { name: "再発行" }).click();
+  await expect(dialog.getByText("Player URL を再発行しますか？")).toBeVisible();
+  await dialog.getByRole("button", { name: "再発行する" }).click();
+  await expect(dialog.getByText("本当に Player URL を再発行しますか？")).toBeVisible();
+  await expect(dialog.getByText("配信されません")).toBeVisible();
+  await dialog.getByRole("button", { name: "キャンセル" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByTestId("player-url")).toHaveValue(before);
+
+  // Confirming both rotates it.
+  await page.getByRole("button", { name: "再発行" }).click();
+  await dialog.getByRole("button", { name: "再発行する" }).click();
+  await expect(dialog.getByText("本当に Player URL を再発行しますか？")).toBeVisible();
+  await dialog.getByRole("button", { name: "再発行する" }).click();
+  await expect(page.getByTestId("player-url")).not.toHaveValue(before);
 });
