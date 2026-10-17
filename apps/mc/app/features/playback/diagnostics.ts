@@ -8,6 +8,7 @@ export type Issue =
   | "multi-player"
   | "autoplay-blocked"
   | "preload-failed"
+  | "preloading"
   | "muted"
   | "stalled"
   | "hidden"
@@ -19,6 +20,7 @@ export const issueText: Record<Issue, string> = {
   "multi-player": "配信PCが複数接続されています",
   "autoplay-blocked": "配信PCで自動再生がブロックされています",
   "preload-failed": "配信PCで読み込めない音声があります",
+  preloading: "配信PCで音声を読み込み中です",
   muted: "配信PCでミュートされています",
   stalled: "配信PCで音声が進んでいません",
   hidden: "配信PCのページが非表示です",
@@ -44,6 +46,9 @@ export function issuesOf(room: RoomView): Issue[] {
   if (d) {
     if (d.autoplay === "blocked") issues.push("autoplay-blocked");
     if (d.preload.failed.length > 0) issues.push("preload-failed");
+    // A just-registered clip still plays (from the network) before it is in
+    // memory, so this is a notice rather than a blocking issue.
+    else if (d.preload.loaded < d.preload.total) issues.push("preloading");
     if (d.muted || d.volume === 0) issues.push("muted");
     if (d.stalled) issues.push("stalled");
     if (d.visibility === "hidden") issues.push("hidden");
@@ -74,6 +79,7 @@ export const logText: Record<string, string> = {
   stalled: "音声が進まない",
   "loop-restart-failed": "ループ再開失敗",
   "token-rotated": "Player URL 再発行",
+  "catalog-refresh-failed": "音声リストの更新失敗",
 };
 
 export function describeLog(entry: LogEntry): string {

@@ -883,6 +883,111 @@ button {
   height: 64px;
 }
 
+/* ─── add / edit uploaded clips ───────────────────────────────────────────── */
+
+.mc-add {
+  min-height: 56px;
+  border-style: dashed;
+  color: var(--gdg-muted);
+  transition: color 300ms var(--mc-ease), border-color 300ms var(--mc-ease);
+}
+
+.mc-add:hover {
+  border-color: var(--gdg-primary);
+  color: var(--gdg-primary);
+}
+
+.mc-card-edit {
+  flex: none;
+  align-self: center;
+  margin: -6px -4px -6px 0;
+  color: var(--gdg-muted);
+}
+
+.mc-chip-group {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.mc-shelf-add {
+  flex: none;
+  border-style: dashed;
+  color: var(--gdg-muted);
+}
+
+.mc-editor {
+  width: min(520px, 100vw);
+  overflow-y: auto;
+}
+
+.mc-editor-body {
+  display: grid;
+  gap: 16px;
+}
+
+.mc-editor-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-dropzone {
+  display: grid;
+  min-height: 120px;
+  place-items: center;
+  border: 1px dashed var(--gdg-border);
+  border-radius: var(--gdg-radius-md);
+  background: var(--gdg-surface);
+  color: var(--gdg-muted);
+  cursor: pointer;
+  transition: border-color 300ms var(--mc-ease), color 300ms var(--mc-ease), background-color 300ms
+    var(--mc-ease);
+}
+
+.mc-dropzone:hover,
+.mc-dropzone:focus-visible {
+  border-color: var(--gdg-primary);
+  background: var(--mc-tint);
+  color: var(--gdg-primary);
+}
+
+.mc-editor-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.mc-editor-text textarea {
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.mc-editor-text textarea[aria-busy] {
+  animation: mc-breathe 1.6s var(--mc-ease) infinite alternate;
+}
+
+@keyframes mc-breathe {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.55;
+  }
+}
+
+.mc-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mc-editor-delete {
+  margin-right: auto;
+  color: var(--gdg-danger);
+}
+
 /* ─── mobile ──────────────────────────────────────────────────────────────── */
 
 @media (max-width: 640px) {

@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import type { Clip } from "~/features/clips/catalog";
+import { useCatalog } from "~/features/clips/catalog-context";
 import type { CommandResult } from "../ack-tracker";
 import { type ConfirmKind, type Intent, type Now, confirmCopy } from "../intent";
 import type { FailureReason, LoopSetting, PlayerState } from "../protocol";
@@ -26,6 +27,7 @@ export function extraCopy(track: string) {
   return {
     resetPlayed: { title: "再生済みをリセットしますか？", action: "リセットする" },
     rotateToken: { title: "Player URL を再発行しますか？", action: "再発行する" },
+    deleteClip: { title: "この音声を削除しますか？", action: "削除する", danger: true },
     // Asked right after rotateToken: the one action here that can silently
     // take a track off air until someone re-configures OBS.
     rotateTokenFinal: {
@@ -99,6 +101,11 @@ export function ControllerProvider({ track, children }: { track: string; childre
   const [busy, setBusy] = useState<Set<string>>(new Set());
 
   useEffect(() => setCues(readCues()), []);
+
+  const { setUploaded } = useCatalog();
+  useEffect(() => {
+    if (room.uploaded) setUploaded(room.uploaded);
+  }, [room.uploaded, setUploaded]);
 
   const primaryRef = useRef<PlayerView | null>(null);
   primaryRef.current = room.primary;

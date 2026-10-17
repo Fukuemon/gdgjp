@@ -2,6 +2,7 @@ import { IconButton, Icons } from "@gdgjp/design-system";
 import { memo, useCallback, useRef } from "react";
 import type { Clip } from "~/features/clips/catalog";
 import { primaryIntent, restartIntent, seekIntent, showsPause } from "../intent";
+import { useOpenEditor } from "./ClipEditor";
 import { RemainingTime } from "./RemainingTime";
 import { ScrollingText } from "./ScrollingText";
 import { SeekBar } from "./SeekBar";
@@ -24,6 +25,7 @@ export function useClipClock(clipId: string) {
 export const ClipCard = memo(function ClipCard({ clip }: { clip: Clip }) {
   const { now, cues, setCue, busy, run, room, setPlayed } = useController();
   const { getMs, setPreview } = useClipClock(clip.id);
+  const openEditor = useOpenEditor();
   const current = now.clipId === clip.id;
   const pause = showsPause(clip.id, now);
   const played = Boolean(room.config.played[clip.id]);
@@ -87,6 +89,17 @@ export const ClipCard = memo(function ClipCard({ clip }: { clip: Clip }) {
             getMs={getMs}
             live={current}
           />
+          {clip.uploaded && (
+            <IconButton
+              aria-label="編集"
+              variant="ghost"
+              size="sm"
+              className="mc-card-edit"
+              onClick={() => openEditor({ kind: "edit", clipId: clip.id })}
+            >
+              <Icons name="Pencil" size={18} aria-hidden="true" />
+            </IconButton>
+          )}
         </div>
         <SeekBar
           durationMs={clip.durationMs}

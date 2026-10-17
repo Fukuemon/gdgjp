@@ -189,3 +189,85 @@ test("reissuing the Player URL needs two confirmations", async ({ page }) => {
   await dialog.getByRole("button", { name: "再発行する" }).click();
   await expect(page.getByTestId("player-url")).not.toHaveValue(before);
 });
+
+/** Mono 16-bit PCM WAV: tone, pause, tone — enough for decode + pause alignment. */
+function testWav(): Buffer {
+  const rate = 8000;
+  const parts: [boolean, number][] = [
+    [true, 1.5],
+    [false, 0.4],
+    [true, 1.5],
+  ];
+  const samples = parts.flatMap(([sound, sec]) =>
+    Array.from({ length: Math.round(sec * rate) }, (_, i) =>
+      sound ? Math.round(12000 * Math.sin((2 * Math.PI * 440 * i) / rate)) : 0,
+    ),
+  );
+  const data = Buffer.alloc(samples.length * 2);
+  samples.forEach((v, i) => data.writeInt16LE(v, i * 2));
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + data.length, 4);
+  header.write("WAVEfmt ", 8);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(rate, 24);
+  header.writeUInt32LE(rate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(data.length, 40);
+  return Buffer.concat([header, data]);
+}
+
+test("an uploaded clip reaches the player and can be edited and deleted", async ({
+  page,
+  browser,
+}) => {
+  const playerUrl = await openController(page);
+  const player = await openPlayer(browser, playerUrl);
+  await expect(page.getByTestId("player-lamp")).toHaveAttribute("data-state", "ok");
+  const title = `e2e ${Date.now()}`;
+
+  await page.getByRole("button", { name: "音声を追加", exact: true }).click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByTestId("clip-file").setInputFiles({
+    name: "e2e.wav",
+    mimeType: "audio/wav",
+    buffer: testWav(),
+  });
+  await expect(sheet.getByText("e2e.wav")).toBeVisible();
+  await expect(sheet.getByText("0:03")).toBeVisible();
+  await sheet.getByLabel("見出し").fill(title);
+  await sheet.getByLabel("テキスト").fill("一行目です。\n二行目です。");
+  await sheet.getByRole("button", { name: "登録" }).click();
+  await expect(sheet).toBeHidden();
+
+  // New uploads go to the end of the track by default.
+  const card = page.locator(".mc-card").last();
+  await expect(card).toContainText(title);
+  await expect(card).toContainText("一行目です。二行目です。");
+
+  // The player learns about it from the room and plays it.
+  await card.getByRole("button", { name: "再生", exact: true }).click();
+  await expect(card).toHaveAttribute("data-status", "playing");
+  await expect(card).toHaveAttribute("data-status", "ended", { timeout: 8000 });
+
+  // Edit the heading.
+  await card.getByRole("button", { name: "編集" }).click();
+  await sheet.getByLabel("見出し").fill(`${title} 改`);
+  await sheet.getByRole("button", { name: "保存" }).click();
+  await expect(sheet).toBeHidden();
+  await expect(card).toContainText(`${title} 改`);
+
+  // Delete it (danger confirmation).
+  await card.getByRole("button", { name: "編集" }).click();
+  await sheet.getByRole("button", { name: "削除" }).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm.getByText("この音声を削除しますか？")).toBeVisible();
+  await confirm.getByRole("button", { name: "削除する" }).click();
+  await expect(page.locator(".mc-card", { hasText: title })).toHaveCount(0);
+
+  await player.context().close();
+});

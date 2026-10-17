@@ -30,3 +30,17 @@ CREATE TABLE oidc_session (
   FOREIGN KEY (user_id) REFERENCES "user" (id) ON DELETE CASCADE
 );
 CREATE INDEX oidc_session_user_idx ON oidc_session (user_id);
+CREATE TABLE uploaded_clip (
+  id TEXT PRIMARY KEY,
+  -- NULL = the common standby shelf.
+  track TEXT,
+  -- Placed right after this clip in its group; NULL = first.
+  after_id TEXT,
+  title TEXT NOT NULL,
+  file TEXT NOT NULL,
+  duration_ms INTEGER NOT NULL,
+  -- JSON [{ "s": ms, "e": ms, "t": text }]
+  segments TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);

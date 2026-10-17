@@ -1,7 +1,7 @@
 import { Icons } from "@gdgjp/design-system";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { clipsForTrack } from "~/features/clips/catalog";
+import { buildCatalog } from "~/features/clips/catalog";
 import { PlayerEngine } from "~/features/playback/player-engine";
 import {
   type LogEntry,
@@ -42,7 +42,8 @@ export default function Play() {
     };
 
     // Only this track's channel can ask for clips, so only those are preloaded.
-    const engine = new PlayerEngine(clipsForTrack(track), log);
+    // Uploaded clips arrive from the room right after connecting.
+    const engine = new PlayerEngine(buildCatalog().forTrack(track), log);
     engineRef.current = engine;
     let lastReport = 0;
     const report = () => {
@@ -71,6 +72,10 @@ export default function Play() {
           engine.setConfig(msg.config);
           return;
         }
+        if (msg.type === "catalog") {
+          engine.setClips(buildCatalog(msg.clips).forTrack(track));
+          return;
+        }
         void engine.execute(msg.cmd).then((result) => {
           const state = engine.state;
           post(
@@ -95,7 +100,6 @@ export default function Play() {
 
     engine.probeAutoplay();
     socket.start();
-    void engine.preload();
 
     return () => {
       clearInterval(timer);

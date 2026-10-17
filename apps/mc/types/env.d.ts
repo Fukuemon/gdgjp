@@ -13,6 +13,8 @@ declare global {
     RP_SESSION_SECRET: string;
     /** OAuth client secret issued by the accounts IdP for this RP. */
     IDP_CLIENT_SECRET: string;
+    /** Gemini API key for transcribing uploaded clips. Optional: without it the operator types the text. */
+    GEMINI_API_KEY?: string;
   }
 }
 

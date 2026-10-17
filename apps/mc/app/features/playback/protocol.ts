@@ -5,7 +5,14 @@
  * WebSocket auto-response (it never wakes the object).
  */
 
+import type { UploadedClip } from "~/features/clips/catalog";
+
 export const PING = "ping";
+
+/** One room per track: track A's controller and player only ever meet each other. */
+export function roomName(track: string): string {
+  return `track:${track}`;
+}
 export const PONG = "pong";
 
 /** Player playback status. `gap` = waiting between loop iterations. */
@@ -112,11 +119,14 @@ export type ToControllerMessage =
       config: RoomConfig;
       players: PlayerPresence[];
       log: LogEntry[];
+      /** Every uploaded clip (all tracks): the editor needs other groups too. */
+      clips: UploadedClip[];
     }
   | { type: "player"; serverNow: number; presence: PlayerPresence }
   | { type: "playerGone"; connId: string }
   | { type: "config"; config: RoomConfig }
   | { type: "token"; token: string }
+  | { type: "catalog"; clips: UploadedClip[] }
   | { type: "result"; id: string; ok: true }
   | { type: "result"; id: string; ok: false; reason: FailureReason; detail?: string }
   | { type: "log"; entry: LogEntry };
@@ -125,6 +135,8 @@ export type ToControllerMessage =
 export type ToPlayerMessage =
   | { type: "cmd"; id: string; cmd: Command }
   | { type: "config"; config: RoomConfig }
+  /** Sent on connect and whenever an upload is added, edited, or removed. */
+  | { type: "catalog"; clips: UploadedClip[] }
   | { type: "probe" };
 
 /** Controller gives up on an ack after this long. */

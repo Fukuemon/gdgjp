@@ -7,7 +7,8 @@ import {
   PopoverTrigger,
 } from "@gdgjp/design-system";
 import { useEffect, useRef } from "react";
-import { type Clip, getClip } from "~/features/clips/catalog";
+import type { Clip } from "~/features/clips/catalog";
+import { useCatalog } from "~/features/clips/catalog-context";
 import { onFrame } from "~/lib/frame";
 import { primaryIntent, restartIntent, seekIntent, showsPause } from "../intent";
 import { MAX_LOOP_GAP_SEC } from "../protocol";
@@ -22,7 +23,8 @@ import { useController } from "./controller-context";
  */
 export function NowPlayingBar() {
   const { now } = useController();
-  const clip = getClip(now.clipId);
+  const { catalog } = useCatalog();
+  const clip = catalog.get(now.clipId);
   return (
     <div className="mc-bar-dock" data-visible={clip ? true : undefined}>
       {clip && <Bar key={clip.id} clip={clip} />}

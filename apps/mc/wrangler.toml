@@ -41,6 +41,12 @@ database_name = "gdgjp-mc-db"
 database_id = "5d98925f-17a1-4658-aa97-8076946f0469"
 migrations_dir = "./migrations"
 
+# Audio of clips uploaded from the controller (key "clips/<id>"), served at
+# /media/<id>. Their metadata is the uploaded_clip table in DB.
+[[r2_buckets]]
+binding = "AUDIO"
+bucket_name = "gdgjp-mc-audio"
+
 # Worker-to-Worker OIDC (discovery, token, UserInfo) stays on Cloudflare's
 # internal network instead of looping through public HTTPS.
 [[services]]

@@ -5,6 +5,9 @@ RP_SESSION_SECRET=""
 # Client secret issued by the accounts IdP for this RP. Must equal the value set
 # as MC_CLIENT_SECRET on the accounts worker.
 IDP_CLIENT_SECRET=""
+# Optional. Gemini API key used to transcribe uploaded clips; leave empty to
+# type the text by hand in the upload form.
+GEMINI_API_KEY=""
 
 # Override prod URLs from wrangler.toml so dev points at the local accounts IdP.
 APP_URL=http://localhost:5187

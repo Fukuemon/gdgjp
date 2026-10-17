@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { UploadedClip } from "~/features/clips/catalog";
 import { AckTracker, type CommandResult } from "./ack-tracker";
 import {
   type Command,
@@ -26,6 +27,8 @@ export type RoomView = {
   /** The player whose state drives the UI: the freshest alive one. */
   primary: PlayerView | null;
   log: LogEntry[];
+  /** Uploaded clips as the room last pushed them; null until the first snapshot. */
+  uploaded: UploadedClip[] | null;
 };
 
 const LOG_LIMIT = 200;
@@ -43,6 +46,7 @@ export function useControllerRoom(track: string) {
   const [config, setConfig] = useState<RoomConfig>({ played: {}, loops: {} });
   const [players, setPlayers] = useState<Map<string, PlayerView>>(new Map());
   const [log, setLog] = useState<LogEntry[]>([]);
+  const [uploaded, setUploaded] = useState<UploadedClip[] | null>(null);
   const [tick, setTick] = useState(0);
   const socketRef = useRef<ReliableSocket | null>(null);
   const acks = useMemo(() => new AckTracker(), []);
@@ -57,6 +61,7 @@ export function useControllerRoom(track: string) {
           setToken(msg.token);
           setConfig(msg.config);
           setLog(msg.log.slice(-LOG_LIMIT));
+          setUploaded(msg.clips ?? []);
           setPlayers(
             new Map(
               msg.players.map((p) => [
@@ -86,6 +91,9 @@ export function useControllerRoom(track: string) {
           return;
         case "token":
           setToken(msg.token);
+          return;
+        case "catalog":
+          setUploaded(msg.clips);
           return;
         case "log":
           setLog((prev) => [...prev, msg.entry].slice(-LOG_LIMIT));
@@ -148,7 +156,7 @@ export function useControllerRoom(track: string) {
     [acks, post],
   );
 
-  const room: RoomView = { socket, rtt, token, config, players: views, primary, log };
+  const room: RoomView = { socket, rtt, token, config, players: views, primary, log, uploaded };
 
   return {
     room,

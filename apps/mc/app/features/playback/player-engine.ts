@@ -1,4 +1,4 @@
-import { type Clip, getClip } from "~/features/clips/catalog";
+import type { Clip } from "~/features/clips/catalog";
 import type { CommandResult } from "./ack-tracker";
 import {
   type Command,
@@ -21,12 +21,18 @@ type Listener = () => void;
  * The OBS-side audio engine: one HTMLAudioElement fed from in-memory blobs.
  *
  * Every clip is downloaded and test-decoded at startup so a ▶ never waits on
- * the network. A command only reports success once the element's clock has
+ * the network; clips registered later are preloaded as soon as they arrive. A command only reports success once the element's clock has
  * actually moved — "play() resolved" is not proof that sound is coming out.
  */
 export class PlayerEngine {
   private audio: HTMLAudioElement;
+  private clips: Clip[] = [];
+  private byId = new Map<string, Clip>();
   private blobs = new Map<string, string>();
+  private failed = new Set<string>();
+  private preloading = false;
+  /** The clip loaded into the element, even if it was removed since. */
+  private lastClip: Clip | null = null;
   private clipId: string | null = null;
   private status: PlayerStatus = "idle";
   private loops: RoomConfig["loops"] = {};
@@ -42,7 +48,7 @@ export class PlayerEngine {
   diag: PlayerDiagnostics;
 
   constructor(
-    private readonly clips: Clip[],
+    clips: Clip[],
     private readonly onLog: (entry: Omit<LogEntry, "at">) => void,
   ) {
     this.audio = new Audio();
@@ -63,6 +69,42 @@ export class PlayerEngine {
     this.audio.addEventListener("pause", this.onExternalPause);
     document.addEventListener("visibilitychange", this.onVisibility);
     this.watchdog = setInterval(this.watch, 250);
+    this.setClips(clips);
+  }
+
+  private getClip(id: string | null): Clip | undefined {
+    return id ? this.byId.get(id) : undefined;
+  }
+
+  /**
+   * Replace the playable set (the room pushes it on connect and after every
+   * upload change). New clips are preloaded; removed ones are released unless
+   * they are the one loaded right now, which keeps playing to its end.
+   */
+  setClips(clips: Clip[]) {
+    this.clips = clips;
+    this.byId = new Map(clips.map((c) => [c.id, c]));
+    if (this.lastClip && this.lastClip.id === this.clipId && !this.byId.has(this.clipId)) {
+      this.byId.set(this.clipId, this.lastClip);
+    }
+    for (const [id, url] of this.blobs) {
+      if (!this.byId.has(id)) {
+        URL.revokeObjectURL(url);
+        this.blobs.delete(id);
+      }
+    }
+    for (const id of this.failed) if (!this.byId.has(id)) this.failed.delete(id);
+    this.recount();
+    void this.preload();
+  }
+
+  private recount() {
+    this.diag.preload = {
+      loaded: this.clips.filter((c) => this.blobs.has(c.id)).length,
+      total: this.clips.length,
+      failed: this.clips.filter((c) => this.failed.has(c.id)).map((c) => c.id),
+    };
+    this.emit();
   }
 
   destroy() {
@@ -113,31 +155,40 @@ export class PlayerEngine {
     this.emit();
   }
 
+  /** Fetch + test-decode every clip not yet in memory, one at a time. */
   async preload() {
-    for (const clip of this.clips) {
-      try {
-        const res = await fetch(clip.src, { cache: "force-cache" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const url = URL.createObjectURL(await res.blob());
-        await verifyDecodable(url);
-        this.blobs.set(clip.id, url);
-        this.diag.preload.loaded += 1;
-      } catch (err) {
-        this.diag.preload.failed.push(clip.id);
-        this.onLog({
-          level: "error",
-          code: "preload-failed",
-          detail: `${clip.id} ${errText(err)}`,
-        });
+    if (this.preloading) return;
+    this.preloading = true;
+    try {
+      for (;;) {
+        const clip = this.clips.find((c) => !this.blobs.has(c.id) && !this.failed.has(c.id));
+        if (!clip) return;
+        try {
+          const res = await fetch(clip.src, { cache: "force-cache" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const url = URL.createObjectURL(await res.blob());
+          await verifyDecodable(url);
+          if (this.byId.has(clip.id)) this.blobs.set(clip.id, url);
+          else URL.revokeObjectURL(url);
+        } catch (err) {
+          this.failed.add(clip.id);
+          this.onLog({
+            level: "error",
+            code: "preload-failed",
+            detail: `${clip.id} ${errText(err)}`,
+          });
+        }
+        this.recount();
       }
-      this.emit();
+    } finally {
+      this.preloading = false;
     }
   }
 
   // ─── state ───────────────────────────────────────────────────────────────
 
   get state(): PlayerState {
-    const clip = getClip(this.clipId);
+    const clip = this.getClip(this.clipId);
     const durationMs = clip?.durationMs ?? 0;
     const positionMs =
       this.status === "ended" || this.status === "gap"
@@ -154,7 +205,7 @@ export class PlayerEngine {
   }
 
   private loopFor(clipId: string): LoopSetting {
-    return this.loops[clipId] ?? defaultLoop(getClip(clipId)?.loop ?? false);
+    return this.loops[clipId] ?? defaultLoop(this.getClip(clipId)?.loop ?? false);
   }
 
   // ─── commands ────────────────────────────────────────────────────────────
@@ -194,7 +245,7 @@ export class PlayerEngine {
   }
 
   private async playFrom(clipId: string, fromMs: number): Promise<CommandResult> {
-    const clip = getClip(clipId);
+    const clip = this.getClip(clipId);
     if (!clip) return { ok: false, reason: "unknown-clip" };
     this.clearGap();
     if (this.status === "gap") this.status = "ended";
@@ -236,7 +287,7 @@ export class PlayerEngine {
   }
 
   private async seek(ms: number): Promise<CommandResult> {
-    const clip = getClip(this.clipId);
+    const clip = this.getClip(this.clipId);
     if (!clip) return { ok: false, reason: "invalid", detail: "nothing loaded" };
     if (this.status === "gap" || this.status === "ended") {
       this.clearGap();
@@ -260,6 +311,7 @@ export class PlayerEngine {
     if (this.status === "playing") this.status = "paused";
     this.audio.pause();
     this.clipId = clip.id;
+    this.lastClip = clip;
     this.audio.src = src;
     if (!this.blobs.has(clip.id)) {
       this.onLog({ level: "warn", code: "network-fallback", detail: clip.id });

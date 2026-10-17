@@ -1,5 +1,12 @@
 import { DurableObject } from "cloudflare:workers";
-import { getClip, playableOn } from "../app/features/clips/catalog";
+import {
+  type Catalog,
+  type Clip,
+  type UploadedClip,
+  buildCatalog,
+  playableOn,
+} from "../app/features/clips/catalog";
+import { listUploaded } from "../app/features/clips/uploads.server";
 import {
   type ControllerMessage,
   type LogEntry,
@@ -36,7 +43,8 @@ const LOG_LIMIT = 200;
  * - "ping" is answered by the runtime's auto-response, so heartbeats cost
  *   nothing and keep NAT/proxy paths warm.
  * - Durable state (player token, played marks, loop settings, event log) is
- *   in the SQLite-backed synchronous KV.
+ *   in the SQLite-backed synchronous KV, plus a cache of the uploaded-clip
+ *   list from D1 so commands validate without a round trip.
  * - Commands are never queued: with no player connected, a command fails
  *   immediately so the operator sees it instead of sound appearing late.
  */
@@ -65,6 +73,41 @@ export class McRoom extends DurableObject<Env> {
       played: this.ctx.storage.kv.get<RoomConfig["played"]>("played") ?? {},
       loops: this.ctx.storage.kv.get<RoomConfig["loops"]>("loops") ?? {},
     };
+  }
+
+  private get uploaded(): UploadedClip[] {
+    return this.ctx.storage.kv.get<UploadedClip[]>("uploaded") ?? [];
+  }
+
+  private catalogCache: { key: string; catalog: Catalog } | null = null;
+
+  private get catalog(): Catalog {
+    const uploaded = this.uploaded;
+    const key = JSON.stringify(uploaded.map((c) => [c.id, c.track, c.after]));
+    if (this.catalogCache?.key !== key) {
+      this.catalogCache = { key, catalog: buildCatalog(uploaded) };
+    }
+    return this.catalogCache.catalog;
+  }
+
+  private getClip(id: string): Clip | undefined {
+    return this.catalog.get(id);
+  }
+
+  /**
+   * Re-read the uploaded clips from D1 and push them to every socket if they
+   * changed. Called by the Worker after an upload/edit/delete (RPC) and on
+   * every connect, so a missed notification heals itself.
+   */
+  async refreshCatalog(track?: string): Promise<void> {
+    if (track && this.ctx.storage.kv.get<string>("track") !== track) {
+      this.ctx.storage.kv.put("track", track);
+    }
+    const clips = await listUploaded(this.env.DB);
+    if (JSON.stringify(clips) === JSON.stringify(this.uploaded)) return;
+    this.ctx.storage.kv.put("uploaded", clips);
+    this.broadcast("controller", { type: "catalog", clips });
+    this.broadcast("player", { type: "catalog", clips });
   }
 
   private get log(): LogEntry[] {
@@ -122,8 +165,10 @@ export class McRoom extends DurableObject<Env> {
         config: this.config,
         players: this.players(),
         log: this.log,
+        clips: this.uploaded,
       });
     } else {
+      this.send(server, { type: "catalog", clips: this.uploaded });
       this.send(server, { type: "config", config: this.config });
       this.appendLog({ level: "info", code: "player-connected", detail: attachment.connId });
       this.broadcast("controller", {
@@ -132,6 +177,11 @@ export class McRoom extends DurableObject<Env> {
         presence: presenceOf(attachment),
       });
     }
+    this.ctx.waitUntil(
+      this.refreshCatalog().catch((err) =>
+        this.appendLog({ level: "warn", code: "catalog-refresh-failed", detail: String(err) }),
+      ),
+    );
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -173,7 +223,7 @@ export class McRoom extends DurableObject<Env> {
     switch (msg.type) {
       case "cmd": {
         const { id, cmd } = msg;
-        const clip = cmd.kind === "play" ? getClip(cmd.clipId) : undefined;
+        const clip = cmd.kind === "play" ? this.getClip(cmd.clipId) : undefined;
         if (cmd.kind === "play" && (!clip || !this.serves(clip))) {
           this.reply(att.connId, { type: "result", id, ok: false, reason: "unknown-clip" });
           return;
@@ -196,7 +246,7 @@ export class McRoom extends DurableObject<Env> {
         return;
       }
       case "setLoop": {
-        const loopClip = getClip(msg.clipId);
+        const loopClip = this.getClip(msg.clipId);
         if (!loopClip || !this.serves(loopClip)) return;
         const loops = this.config.loops;
         loops[msg.clipId] = {
@@ -231,13 +281,13 @@ export class McRoom extends DurableObject<Env> {
     }
   }
 
-  private serves(clip: NonNullable<ReturnType<typeof getClip>>): boolean {
+  private serves(clip: Clip): boolean {
     const track = this.ctx.storage.kv.get<string>("track");
     return track ? playableOn(clip, track) : true;
   }
 
   private setPlayed(clipId: string, value: boolean) {
-    const clip = getClip(clipId);
+    const clip = this.getClip(clipId);
     // Standby (common) clips never get a played mark.
     if (!clip || clip.track === null) return;
     const played = this.config.played;

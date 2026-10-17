@@ -1,16 +1,12 @@
 import { createRequestHandler } from "react-router";
 import { canUseController } from "../app/features/auth/auth-redirect.server";
 import { isTrack } from "../app/features/clips/catalog";
+import { roomName } from "../app/features/playback/protocol";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
   import.meta.env?.MODE ?? "production",
 );
-
-/** One room per track: track A's controller and player only ever meet each other. */
-function roomName(track: string): string {
-  return `track:${track}`;
-}
 
 export default {
   async fetch(request, env, ctx) {

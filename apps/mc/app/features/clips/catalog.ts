@@ -16,33 +16,85 @@ export type Clip = {
   /** Loop by default (A-01 is the doors-open loop). */
   loop: boolean;
   segments: Segment[];
+  /** Added from the controller (R2 + D1) rather than bundled; editable. */
+  uploaded?: true;
 };
 
-export const clips: Clip[] = (data as { clips: Clip[] }).clips;
+/** An uploaded clip as stored: placed right after `after` (null = first) in its group. */
+export type UploadedClip = Clip & { uploaded: true; after: string | null; createdAt: number };
 
-const byId = new Map(clips.map((c) => [c.id, c]));
+export const bundledClips: Clip[] = (data as { clips: Clip[] }).clips;
 
-export function getClip(id: string | null | undefined): Clip | undefined {
-  return id ? byId.get(id) : undefined;
-}
-
-export const commonClips = clips.filter((c) => c.track === null);
-
-/** Tracks that have at least one clip, in order. */
-export const tracks: { id: string; clips: Clip[] }[] = [...new Set(clips.map((c) => c.track))]
+/** Tracks that have bundled clips, in order. Uploads go to these or to the common shelf. */
+export const tracks: string[] = [...new Set(bundledClips.map((c) => c.track))]
   .filter((t): t is string => t !== null)
-  .sort()
-  .map((id) => ({ id, clips: clips.filter((c) => c.track === id) }));
+  .sort();
 
 export function isTrack(id: string | null | undefined): id is string {
-  return tracks.some((t) => t.id === id);
+  return tracks.some((t) => t === id);
 }
 
 /** A track's channel plays that track's clips plus the shared standby clips. */
-export function playableOn(clip: Clip, track: string): boolean {
+export function playableOn(clip: Pick<Clip, "track">, track: string): boolean {
   return clip.track === null || clip.track === track;
 }
 
-export function clipsForTrack(track: string): Clip[] {
-  return clips.filter((c) => playableOn(c, track));
+export function uploadedSrc(id: string): string {
+  return `/media/${id}`;
+}
+
+/**
+ * Splice uploaded clips into one group (a track, or the common shelf). Each
+ * upload follows its anchor; several on the same anchor keep upload order,
+ * and an upload's own followers come right after it. Uploads whose anchor
+ * is gone (deleted, or moved to another group) fall to the end.
+ */
+function placeGroup(bundled: Clip[], uploaded: UploadedClip[]): Clip[] {
+  const ordered = [...uploaded].sort((a, b) => a.createdAt - b.createdAt);
+  const followers = new Map<string | null, UploadedClip[]>();
+  for (const u of ordered) {
+    const list = followers.get(u.after) ?? [];
+    list.push(u);
+    followers.set(u.after, list);
+  }
+  const out: Clip[] = [];
+  const seen = new Set<string>();
+  const emit = (clip: Clip) => {
+    if (seen.has(clip.id)) return;
+    seen.add(clip.id);
+    out.push(clip);
+    for (const f of followers.get(clip.id) ?? []) emit(f);
+  };
+  for (const f of followers.get(null) ?? []) emit(f);
+  for (const clip of bundled) emit(clip);
+  for (const u of ordered) emit(u);
+  return out;
+}
+
+export type Catalog = {
+  all: Clip[];
+  common: Clip[];
+  byTrack: Record<string, Clip[]>;
+  get: (id: string | null | undefined) => Clip | undefined;
+  /** What one track's channel serves: its clips plus the common shelf. */
+  forTrack: (track: string) => Clip[];
+};
+
+export function buildCatalog(uploaded: UploadedClip[] = []): Catalog {
+  const group = (track: string | null) =>
+    placeGroup(
+      bundledClips.filter((c) => c.track === track),
+      uploaded.filter((c) => c.track === track),
+    );
+  const common = group(null);
+  const byTrack = Object.fromEntries(tracks.map((t) => [t, group(t)]));
+  const all = [...common, ...tracks.flatMap((t) => byTrack[t])];
+  const byId = new Map(all.map((c) => [c.id, c]));
+  return {
+    all,
+    common,
+    byTrack,
+    get: (id) => (id ? byId.get(id) : undefined),
+    forTrack: (track) => [...common, ...(byTrack[track] ?? [])],
+  };
 }
