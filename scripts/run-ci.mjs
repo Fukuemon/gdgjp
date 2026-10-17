@@ -32,7 +32,7 @@ const quickSteps = [
 ];
 
 const goSteps = quickSteps.filter(([name]) => name === "go");
-const builtE2EApps = ["accounts", "tinyurl", "img", "scheduler", "wiki", "roster", "ost"];
+const builtE2EApps = ["accounts", "tinyurl", "img", "scheduler", "wiki", "roster", "ost", "mc"];
 
 const fullSteps = [
   ...quickSteps,
@@ -52,6 +52,7 @@ const fullSteps = [
     "design-system",
     "pay",
     "ost",
+    "mc",
     "connpass",
   ].map((app) => [
     `e2e:@gdgjp/${app}`,
@@ -97,6 +98,7 @@ const workspaces = new Map([
   ["packages/design-system", "@gdgjp/design-system"],
   ["apps/go-extension", "@gdgjp/go-extension"],
   ["apps/img", "@gdgjp/img"],
+  ["apps/mc", "@gdgjp/mc"],
   ["apps/ost", "@gdgjp/ost"],
   ["apps/pay", "@gdgjp/pay"],
   ["apps/roster", "@gdgjp/roster"],

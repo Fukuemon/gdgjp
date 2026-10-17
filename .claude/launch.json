@@ -22,6 +22,12 @@
       "port": 5186
     },
     {
+      "name": "mc-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@gdgjp/mc", "dev"],
+      "port": 5187
+    },
+    {
       "name": "img-dev",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@gdgjp/img", "dev"],

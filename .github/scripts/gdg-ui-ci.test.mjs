@@ -223,14 +223,14 @@ test("Wiki E2E specs and setup changes select the Wiki suite", () => {
 test("full CI schedules the Wiki E2E target once", () => {
   const steps = completeSteps("full");
   assert.equal(steps.filter(([name]) => name === "e2e:@gdgjp/wiki").length, 1);
-  assert.equal(steps.filter(([name]) => name.startsWith("e2e")).length, 10);
+  assert.equal(steps.filter(([name]) => name.startsWith("e2e")).length, 11);
   assert.ok(steps.find(([name]) => name === "typecheck+build")[2].PATH);
   assert.ok(steps.find(([name]) => name === "test")[2].PATH);
   assert.equal(steps.find(([name]) => name === "test:addons")[2], undefined);
   for (const app of ["wiki", "accounts", "scheduler", "tinyurl", "img", "pay"]) {
     assert.equal(
       steps.find(([name]) => name === `e2e:@gdgjp/${app}`)[2].GDG_E2E_BUILT,
-      "accounts,tinyurl,img,scheduler,wiki,roster,ost",
+      "accounts,tinyurl,img,scheduler,wiki,roster,ost,mc",
     );
   }
   const names = steps.map(([name]) => name);

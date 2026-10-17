@@ -34,6 +34,11 @@ Applications live in `apps/` and shared libraries in `packages/`. Workspace glob
   auth tables; domain tables land starting Stage 02 of that plan. All admin surfaces are
   `apps/accounts/` relying-party routes gated by GDG chapter membership; staff self-registration and
   the published shift view are separate public/sign-in-only surfaces.
+- `apps/mc/` is the remote MC audio player (`mc.gdgs.jp`): the operator controller (an
+  `apps/accounts/` relying party gated by chapter membership) sends commands through one
+  `McRoom` Durable Object to an OBS Browser Source player page (`/play?t=<token>`). Clip audio
+  and timestamped transcripts are generated offline into `public/audio/` and `clips.json`
+  (`scripts/build-clips.mjs`); the source `音声/` and `原稿/` folders are never committed.
 - `packages/gdg-lib/` is the source-only shared TypeScript package (`@gdgjp/gdg-lib`) for relying-party
   auth and signed-cookie helpers. Keep code app-local unless it is genuinely shared here.
 - `packages/design-system/` is the `gdg-jp/design-system` Git submodule and shared React 19 workspace (`@gdgjp/design-system`).

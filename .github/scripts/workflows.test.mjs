@@ -14,6 +14,7 @@ test("Cloudflare pipelines invoke the package deploy script unambiguously", () =
     "sns",
     "ost",
     "roster",
+    "mc",
     "website",
   ];
 
